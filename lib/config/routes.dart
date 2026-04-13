@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../providers/auth_provider.dart';
 import '../pages/auth/login_page.dart';
 import '../pages/auth/register_page.dart';
 import '../pages/home/home_page.dart';
@@ -13,67 +13,66 @@ import '../pages/profile/profile_page.dart';
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
 
-String? _authToken;
+GoRouter createRouter(AuthProvider authProvider) {
+  return GoRouter(
+    navigatorKey: _rootNavigatorKey,
+    initialLocation: '/home',
+    refreshListenable: authProvider,
+    redirect: (context, state) {
+      final isAuth = authProvider.isAuthenticated;
+      final isLoading = authProvider.isLoading;
+      final isAuthRoute = state.matchedLocation == '/login' ||
+          state.matchedLocation == '/register';
 
-Future<void> initRouter() async {
-  final prefs = await SharedPreferences.getInstance();
-  _authToken = prefs.getString('auth_token');
+      // Still checking stored token — don't redirect yet
+      if (isLoading) return null;
+
+      // Not logged in, not on auth page → go to login
+      if (!isAuth && !isAuthRoute) return '/login';
+
+      // Logged in, on auth page → go to home
+      if (isAuth && isAuthRoute) return '/home';
+
+      return null;
+    },
+    routes: [
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: '/register',
+        builder: (context, state) => const RegisterPage(),
+      ),
+      ShellRoute(
+        navigatorKey: _shellNavigatorKey,
+        builder: (context, state, child) => _ScaffoldWithNav(child: child),
+        routes: [
+          GoRoute(
+            path: '/home',
+            builder: (context, state) => const HomePage(),
+          ),
+          GoRoute(
+            path: '/strength',
+            builder: (context, state) => const StrengthPage(),
+          ),
+          GoRoute(
+            path: '/yoga',
+            builder: (context, state) => const YogaPage(),
+          ),
+          GoRoute(
+            path: '/breathwork',
+            builder: (context, state) => const BreathworkPage(),
+          ),
+          GoRoute(
+            path: '/profile',
+            builder: (context, state) => const ProfilePage(),
+          ),
+        ],
+      ),
+    ],
+  );
 }
-
-void setAuthToken(String? token) {
-  _authToken = token;
-}
-
-final GoRouter appRouter = GoRouter(
-  navigatorKey: _rootNavigatorKey,
-  initialLocation: '/home',
-  redirect: (context, state) {
-    final isAuth = _authToken != null;
-    final isAuthRoute =
-        state.matchedLocation == '/login' ||
-        state.matchedLocation == '/register';
-
-    if (!isAuth && !isAuthRoute) return '/login';
-    if (isAuth && isAuthRoute) return '/home';
-    return null;
-  },
-  routes: [
-    GoRoute(
-      path: '/login',
-      builder: (context, state) => const LoginPage(),
-    ),
-    GoRoute(
-      path: '/register',
-      builder: (context, state) => const RegisterPage(),
-    ),
-    ShellRoute(
-      navigatorKey: _shellNavigatorKey,
-      builder: (context, state, child) => _ScaffoldWithNav(child: child),
-      routes: [
-        GoRoute(
-          path: '/home',
-          builder: (context, state) => const HomePage(),
-        ),
-        GoRoute(
-          path: '/strength',
-          builder: (context, state) => const StrengthPage(),
-        ),
-        GoRoute(
-          path: '/yoga',
-          builder: (context, state) => const YogaPage(),
-        ),
-        GoRoute(
-          path: '/breathwork',
-          builder: (context, state) => const BreathworkPage(),
-        ),
-        GoRoute(
-          path: '/profile',
-          builder: (context, state) => const ProfilePage(),
-        ),
-      ],
-    ),
-  ],
-);
 
 class _ScaffoldWithNav extends StatelessWidget {
   final Widget child;
