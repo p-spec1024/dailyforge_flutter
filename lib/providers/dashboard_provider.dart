@@ -42,7 +42,7 @@ class DashboardProvider extends ChangeNotifier {
         .toSet();
 
     int streak = 0;
-    // Start from today and count backwards
+    // Count backwards from today (capped at 7 — API only returns this week)
     for (int i = 0; i <= 7; i++) {
       final day = today.subtract(Duration(days: i));
       if (activityDates.contains(day)) {
@@ -60,7 +60,7 @@ class DashboardProvider extends ChangeNotifier {
   List<Map<String, dynamic>> get recentPRs {
     final prs = _dashboardData?['recentPRs'] as List<dynamic>?;
     if (prs == null) return [];
-    return prs.cast<Map<String, dynamic>>();
+    return prs.whereType<Map<String, dynamic>>().toList();
   }
 
   /// 7 bools for Mon–Sun, true if any activity that day.
@@ -89,26 +89,14 @@ class DashboardProvider extends ChangeNotifier {
 
   Map<String, dynamic>? get milestone => _dashboardData?['milestone'] as Map<String, dynamic>?;
 
-  Map<String, dynamic>? get thisWeek => _dashboardData?['thisWeek'] as Map<String, dynamic>?;
-
-  Map<String, dynamic>? get lastSession => _dashboardData?['lastSession'] as Map<String, dynamic>?;
-
   // --- Data fetching ---
 
   Future<void> fetchDashboard() async {
-    try {
-      _dashboardData = await _api.get(ApiConfig.dashboard);
-    } on ApiException {
-      rethrow;
-    }
+    _dashboardData = await _api.get(ApiConfig.dashboard);
   }
 
   Future<void> fetchTodayWorkout() async {
-    try {
-      _todayWorkout = await _api.get(ApiConfig.workoutToday);
-    } on ApiException {
-      rethrow;
-    }
+    _todayWorkout = await _api.get(ApiConfig.workoutToday);
   }
 
   Future<void> refresh() async {
@@ -120,6 +108,8 @@ class DashboardProvider extends ChangeNotifier {
       await Future.wait([fetchDashboard(), fetchTodayWorkout()]);
       _error = null;
     } on ApiException catch (e) {
+      _dashboardData = null;
+      _todayWorkout = null;
       _error = e.message;
     } finally {
       _isLoading = false;

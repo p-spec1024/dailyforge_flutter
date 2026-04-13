@@ -17,6 +17,7 @@ class AppColors {
   static const Color strength = Color(0xFFF97316);
   static const Color yoga = Color(0xFF14B8A6);
   static const Color breathwork = Color(0xFF3B82F6);
+  static const Color purple = Color(0xFFa78bfa);
 
   // Status
   static const Color success = Color(0xFF22C55E);

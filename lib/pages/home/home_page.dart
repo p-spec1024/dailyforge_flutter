@@ -17,7 +17,10 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<DashboardProvider>().refresh();
+      final provider = context.read<DashboardProvider>();
+      if (provider.dashboardData == null) {
+        provider.refresh();
+      }
     });
   }
 
@@ -324,7 +327,7 @@ class _QuickStartButtons extends StatelessWidget {
           child: _QuickStartCard(
             label: 'Breathwork',
             icon: LucideIcons.wind,
-            color: Color(0xFFa78bfa), // purple
+            color: AppColors.purple,
           ),
         ),
       ],
