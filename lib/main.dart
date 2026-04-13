@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'config/theme.dart';
 import 'config/routes.dart';
@@ -12,34 +13,44 @@ void main() {
   runApp(const DailyForgeApp());
 }
 
-class DailyForgeApp extends StatelessWidget {
+class DailyForgeApp extends StatefulWidget {
   const DailyForgeApp({super.key});
 
   @override
+  State<DailyForgeApp> createState() => _DailyForgeAppState();
+}
+
+class _DailyForgeAppState extends State<DailyForgeApp> {
+  late final AuthProvider _authProvider;
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    final storage = StorageService();
+    final api = ApiService(storage);
+    final authService = AuthService(api, storage);
+    _authProvider = AuthProvider(authService, api);
+    _authProvider.initialize();
+    _router = createRouter(_authProvider);
+  }
+
+  @override
+  void dispose() {
+    _router.dispose();
+    _authProvider.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider<AuthProvider>(
-          create: (_) {
-            final storage = StorageService();
-            final api = ApiService(storage);
-            final auth = AuthService(api, storage);
-            final provider = AuthProvider(auth, api);
-            provider.initialize();
-            return provider;
-          },
-        ),
-      ],
-      child: Consumer<AuthProvider>(
-        builder: (context, authProvider, _) {
-          final router = createRouter(authProvider);
-          return MaterialApp.router(
-            title: 'DailyForge',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.darkTheme,
-            routerConfig: router,
-          );
-        },
+    return ChangeNotifierProvider<AuthProvider>.value(
+      value: _authProvider,
+      child: MaterialApp.router(
+        title: 'DailyForge',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.darkTheme,
+        routerConfig: _router,
       ),
     );
   }

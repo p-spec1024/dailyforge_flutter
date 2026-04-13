@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import 'storage_service.dart';
@@ -15,6 +16,11 @@ class ApiException implements Exception {
 class UnauthorizedException extends ApiException {
   UnauthorizedException()
       : super(401, 'Session expired. Please login again.');
+}
+
+class NetworkException extends ApiException {
+  NetworkException()
+      : super(0, 'Network error. Check your connection and try again.');
 }
 
 class ApiService {
@@ -39,11 +45,15 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> get(String path) async {
-    final response = await http.get(
-      Uri.parse(ApiConfig.url(path)),
-      headers: await _getHeaders(),
-    );
-    return _handleResponse(response);
+    try {
+      final response = await http.get(
+        Uri.parse(ApiConfig.url(path)),
+        headers: await _getHeaders(),
+      );
+      return await _handleResponse(response);
+    } on SocketException {
+      throw NetworkException();
+    }
   }
 
   Future<Map<String, dynamic>> post(
@@ -51,35 +61,47 @@ class ApiService {
     Map<String, dynamic> body, {
     bool withAuth = true,
   }) async {
-    final response = await http.post(
-      Uri.parse(ApiConfig.url(path)),
-      headers: await _getHeaders(withAuth: withAuth),
-      body: jsonEncode(body),
-    );
-    return _handleResponse(response);
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConfig.url(path)),
+        headers: await _getHeaders(withAuth: withAuth),
+        body: jsonEncode(body),
+      );
+      return await _handleResponse(response);
+    } on SocketException {
+      throw NetworkException();
+    }
   }
 
   Future<Map<String, dynamic>> put(
     String path,
     Map<String, dynamic> body,
   ) async {
-    final response = await http.put(
-      Uri.parse(ApiConfig.url(path)),
-      headers: await _getHeaders(),
-      body: jsonEncode(body),
-    );
-    return _handleResponse(response);
+    try {
+      final response = await http.put(
+        Uri.parse(ApiConfig.url(path)),
+        headers: await _getHeaders(),
+        body: jsonEncode(body),
+      );
+      return await _handleResponse(response);
+    } on SocketException {
+      throw NetworkException();
+    }
   }
 
   Future<Map<String, dynamic>> delete(String path) async {
-    final response = await http.delete(
-      Uri.parse(ApiConfig.url(path)),
-      headers: await _getHeaders(),
-    );
-    return _handleResponse(response);
+    try {
+      final response = await http.delete(
+        Uri.parse(ApiConfig.url(path)),
+        headers: await _getHeaders(),
+      );
+      return await _handleResponse(response);
+    } on SocketException {
+      throw NetworkException();
+    }
   }
 
-  Map<String, dynamic> _handleResponse(http.Response response) {
+  Future<Map<String, dynamic>> _handleResponse(http.Response response) async {
     final body = response.body.isNotEmpty
         ? jsonDecode(response.body) as Map<String, dynamic>
         : <String, dynamic>{};
@@ -89,8 +111,8 @@ class ApiService {
     }
 
     if (response.statusCode == 401) {
-      _storage.deleteToken();
-      _storage.deleteUser();
+      await _storage.deleteToken();
+      await _storage.deleteUser();
       onUnauthorized?.call();
       throw UnauthorizedException();
     }

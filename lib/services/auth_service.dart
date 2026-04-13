@@ -50,7 +50,7 @@ class AuthService {
     return user;
   }
 
-  Future<void> logout() => _storage.clearAll();
+  Future<void> logout() => _storage.clearAuth();
 
   Future<bool> isLoggedIn() async {
     final token = await _storage.getToken();
