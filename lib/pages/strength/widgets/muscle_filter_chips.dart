@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../providers/strength_provider.dart';
 import '../../../config/theme.dart';
+import '../../../providers/strength_provider.dart';
 
 class MuscleFilterChips extends StatelessWidget {
   const MuscleFilterChips({super.key});
@@ -26,7 +26,7 @@ class MuscleFilterChips extends StatelessWidget {
                 padding: const EdgeInsets.only(right: 8),
                 child: FilterChip(
                   label: Text(
-                    group[0].toUpperCase() + group.substring(1),
+                    capitalize(group),
                     style: TextStyle(
                       color: isSelected ? Colors.white : AppColors.secondaryText,
                       fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,

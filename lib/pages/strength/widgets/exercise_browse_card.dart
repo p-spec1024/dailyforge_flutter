@@ -8,24 +8,11 @@ class ExerciseBrowseCard extends StatelessWidget {
 
   const ExerciseBrowseCard({super.key, required this.exercise});
 
-  Color _getDifficultyColor(String difficulty) {
-    switch (difficulty.toLowerCase()) {
-      case 'beginner':
-        return const Color(0xFF1D9E75);
-      case 'intermediate':
-        return const Color(0xFFD85A30);
-      case 'advanced':
-        return const Color(0xFFE53E3E);
-      default:
-        return AppColors.secondaryText;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final name = exercise['name'];
-    final muscle = exercise['target_muscles'].toString().split(',').first;
-    final difficulty = exercise['difficulty'];
+    final name = exercise['name'] as String? ?? '';
+    final muscle = (exercise['target_muscles']?.toString() ?? '').split(',').first;
+    final difficulty = exercise['difficulty'] as String? ?? '';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -35,7 +22,7 @@ class ExerciseBrowseCard extends StatelessWidget {
             context: context,
             isScrollControlled: true,
             backgroundColor: Colors.transparent,
-            builder: (context) => ExerciseDetailSheet(exercise: exercise),
+            builder: (_) => ExerciseDetailSheet(exercise: exercise),
           );
         },
         borderRadius: BorderRadius.circular(12),
@@ -54,46 +41,25 @@ class ExerciseBrowseCard extends StatelessWidget {
                   children: [
                     Text(
                       name,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.strength.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
+                        if (muscle.isNotEmpty)
+                          _TagChip(
+                            label: capitalize(muscle),
+                            color: AppColors.strength,
                           ),
-                          child: Text(
-                            muscle[0].toUpperCase() + muscle.substring(1),
-                            style: const TextStyle(
-                              color: AppColors.strength,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                            ),
+                        if (muscle.isNotEmpty && difficulty.isNotEmpty)
+                          const SizedBox(width: 8),
+                        if (difficulty.isNotEmpty)
+                          _TagChip(
+                            label: capitalize(difficulty),
+                            color: AppColors.difficultyColor(difficulty),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _getDifficultyColor(difficulty).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            difficulty[0].toUpperCase() + difficulty.substring(1),
-                            style: TextStyle(
-                              color: _getDifficultyColor(difficulty),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ],
@@ -106,6 +72,32 @@ class ExerciseBrowseCard extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TagChip extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _TagChip({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );

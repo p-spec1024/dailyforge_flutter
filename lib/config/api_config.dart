@@ -18,6 +18,8 @@ class ApiConfig {
 
   // Exercises
   static const String exercises = '/exercises';
+  static const String exercisesStrength = '/exercises/strength';
+  static const String exerciseMuscleGroups = '/exercises/muscle-groups';
   static const String exerciseAlternatives = '/exercises/alternatives';
   static const String exerciseSwap = '/exercises/swap';
 

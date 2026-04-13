@@ -1,28 +1,25 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import '../config/api_config.dart';
 import '../services/api_service.dart';
 
 class StrengthProvider extends ChangeNotifier {
   final ApiService _api;
 
-  // Exercise browser state
-  List<Map<String, dynamic>> exercises = [];
-  int totalExercises = 0;
-  bool hasMore = false;
-  bool isLoadingExercises = false;
-  String? exerciseError;
+  List<Map<String, dynamic>> _exercises = [];
+  int _totalExercises = 0;
+  bool _hasMore = false;
+  bool _isLoading = false;
+  String? _error;
 
   // Filters
-  String searchQuery = '';
-  String? selectedMuscle; // null = "All"
-  List<String> muscleGroups = [];
+  String _searchQuery = '';
+  String? _selectedMuscle; // null = "All"
+  List<String> _muscleGroups = [];
 
   // Routines
-  List<Map<String, dynamic>> routines = [];
-  bool isLoadingRoutines = false;
-
-  // Selected exercise for detail modal
-  Map<String, dynamic>? selectedExercise;
+  List<Map<String, dynamic>> _routines = [];
+  bool _isLoadingRoutines = false;
 
   // Pagination
   int _offset = 0;
@@ -32,97 +29,126 @@ class StrengthProvider extends ChangeNotifier {
 
   StrengthProvider(this._api);
 
+  // --- Getters ---
+
+  List<Map<String, dynamic>> get exercises => _exercises;
+  int get totalExercises => _totalExercises;
+  bool get hasMore => _hasMore;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+  String get searchQuery => _searchQuery;
+  String? get selectedMuscle => _selectedMuscle;
+  List<String> get muscleGroups => _muscleGroups;
+  List<Map<String, dynamic>> get routines => _routines;
+  bool get isLoadingRoutines => _isLoadingRoutines;
+
+  // --- Data fetching ---
+
   Future<void> fetchExercises({bool reset = false}) async {
     if (reset) {
       _offset = 0;
-      exercises = [];
-      hasMore = false;
+      _exercises = [];
+      _hasMore = false;
     }
 
-    isLoadingExercises = true;
-    exerciseError = null;
+    _isLoading = true;
+    _error = null;
     notifyListeners();
 
     try {
-      final muscleParam = selectedMuscle != null ? '&muscle=$selectedMuscle' : '';
-      final searchParam = searchQuery.isNotEmpty ? '&search=$searchQuery' : '';
-      final path = '/api/exercises/strength?limit=$_pageSize&offset=$_offset$muscleParam$searchParam';
-      
+      final muscleParam = _selectedMuscle != null ? '&muscle=$_selectedMuscle' : '';
+      final searchParam = _searchQuery.isNotEmpty ? '&search=$_searchQuery' : '';
+      final path = '${ApiConfig.exercisesStrength}?limit=$_pageSize&offset=$_offset$muscleParam$searchParam';
+
       final response = await _api.get(path);
-      
-      final newExercises = List<Map<String, dynamic>>.from(response['exercises']);
-      totalExercises = response['total'] ?? 0;
-      hasMore = response['hasMore'] ?? false;
+
+      final newExercises = (response['exercises'] as List<dynamic>)
+          .whereType<Map<String, dynamic>>()
+          .toList();
+      _totalExercises = response['total'] as int? ?? 0;
+      _hasMore = response['hasMore'] as bool? ?? false;
 
       if (reset) {
-        exercises = newExercises;
+        _exercises = newExercises;
       } else {
-        exercises.addAll(newExercises);
+        _exercises.addAll(newExercises);
       }
 
-      isLoadingExercises = false;
+      _isLoading = false;
       notifyListeners();
-    } catch (e) {
-      exerciseError = e.toString();
-      isLoadingExercises = false;
+    } on ApiException catch (e) {
+      _error = e.message;
+      _isLoading = false;
       notifyListeners();
     }
   }
 
   Future<void> fetchMuscleGroups() async {
     try {
-      final response = await _api.get('/api/exercises/muscle-groups');
-      muscleGroups = List<String>.from(response['groups']);
+      final response = await _api.get(ApiConfig.exerciseMuscleGroups);
+      _muscleGroups = List<String>.from(response['groups'] as List<dynamic>);
       notifyListeners();
-    } catch (e) {
-      debugPrint('Error fetching muscle groups: $e');
+    } on ApiException catch (e) {
+      debugPrint('Error fetching muscle groups: ${e.message}');
     }
   }
 
   Future<void> fetchRoutines() async {
-    isLoadingRoutines = true;
+    _isLoadingRoutines = true;
     notifyListeners();
 
     try {
-      final response = await _api.get('/api/routines');
-      routines = List<Map<String, dynamic>>.from(response as List);
-      isLoadingRoutines = false;
+      final response = await _api.get(ApiConfig.routines);
+      final list = response['routines'] as List<dynamic>? ?? response['data'] as List<dynamic>? ?? [];
+      _routines = list.whereType<Map<String, dynamic>>().toList();
+      _isLoadingRoutines = false;
       notifyListeners();
-    } catch (e) {
-      debugPrint('Error fetching routines: $e');
-      isLoadingRoutines = false;
+    } on ApiException catch (e) {
+      debugPrint('Error fetching routines: ${e.message}');
+      _isLoadingRoutines = false;
       notifyListeners();
     }
   }
 
   Future<void> deleteRoutine(int id) async {
     try {
-      await _api.delete('/api/routines/$id');
-      routines.removeWhere((r) => r['id'] == id);
+      await _api.delete('${ApiConfig.routines}/$id');
+      _routines.removeWhere((r) => r['id'] == id);
       notifyListeners();
-    } catch (e) {
-      debugPrint('Error deleting routine: $e');
+    } on ApiException catch (e) {
+      debugPrint('Error deleting routine: ${e.message}');
     }
   }
 
-  void setSearch(String query) {
-    if (searchQuery == query) return;
-    searchQuery = query;
+  Future<void> refresh() async {
+    _error = null;
+    await Future.wait([
+      fetchMuscleGroups(),
+      fetchRoutines(),
+      fetchExercises(reset: true),
+    ]);
+  }
 
-    if (_debounce?.isActive ?? false) _debounce?.cancel();
+  void setSearch(String query) {
+    if (_searchQuery == query) return;
+    _searchQuery = query;
+    notifyListeners();
+
+    _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 300), () {
       fetchExercises(reset: true);
     });
   }
 
   void setMuscleFilter(String? muscle) {
-    if (selectedMuscle == muscle) return;
-    selectedMuscle = muscle;
+    if (_selectedMuscle == muscle) return;
+    _selectedMuscle = muscle;
+    _debounce?.cancel();
     fetchExercises(reset: true);
   }
 
   Future<void> loadMore() async {
-    if (isLoadingExercises || !hasMore) return;
+    if (_isLoading || !_hasMore) return;
     _offset += _pageSize;
     await fetchExercises();
   }

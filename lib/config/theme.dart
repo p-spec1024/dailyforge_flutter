@@ -19,10 +19,28 @@ class AppColors {
   static const Color breathwork = Color(0xFF3B82F6);
   static const Color purple = Color(0xFFa78bfa);
 
+  // Difficulty
+  static const Color beginner = Color(0xFF1D9E75);
+  static const Color intermediate = Color(0xFFD85A30);
+  static const Color advanced = Color(0xFFE53E3E);
+
   // Status
   static const Color success = Color(0xFF22C55E);
   static const Color error = Color(0xFFEF4444);
   static const Color warning = Color(0xFFEAB308);
+
+  static Color difficultyColor(String difficulty) {
+    switch (difficulty.toLowerCase()) {
+      case 'beginner':
+        return beginner;
+      case 'intermediate':
+        return intermediate;
+      case 'advanced':
+        return advanced;
+      default:
+        return secondaryText;
+    }
+  }
 
   static Color pillarColor(String pillar) {
     switch (pillar) {
@@ -42,6 +60,9 @@ const TextStyle monoStyle = TextStyle(
   fontFamily: 'RobotoMono',
   color: Colors.white,
 );
+
+/// Safely capitalise the first letter of a string.
+String capitalize(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
 class AppTheme {
   static ThemeData get darkTheme {

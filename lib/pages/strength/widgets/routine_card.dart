@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../../config/theme.dart';
-import '../../../widgets/glass_card.dart';
 import '../../../providers/strength_provider.dart';
+import '../../../widgets/glass_card.dart';
 
 class RoutineCard extends StatelessWidget {
   final Map<String, dynamic> routine;
@@ -11,7 +11,8 @@ class RoutineCard extends StatelessWidget {
   const RoutineCard({super.key, required this.routine});
 
   String _timeAgo(String dateString) {
-    final date = DateTime.parse(dateString);
+    final date = DateTime.tryParse(dateString);
+    if (date == null) return '';
     final diff = DateTime.now().difference(date);
     if (diff.inDays > 30) return '${(diff.inDays / 30).floor()}mo ago';
     if (diff.inDays > 0) return '${diff.inDays}d ago';
@@ -22,16 +23,16 @@ class RoutineCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final id = routine['id'];
-    final name = routine['name'];
-    final exerciseCount = routine['exercise_count'];
-    final dateString = routine['updated_at'] ?? DateTime.now().toIso8601String();
+    final name = routine['name'] as String? ?? '';
+    final exerciseCount = routine['exercise_count'] ?? 0;
+    final dateString = routine['updated_at'] as String? ?? DateTime.now().toIso8601String();
 
     return Container(
       width: 240,
       margin: const EdgeInsets.only(right: 12),
       child: GlassCard(
         padding: const EdgeInsets.all(16),
-        onTap: () => debugPrint('Start routine $id'),
+        onTap: null, // Placeholder — wired in active session ticket
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -41,21 +42,16 @@ class RoutineCard extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '$exerciseCount exercises • ${_timeAgo(dateString)}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.secondaryText,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ),
@@ -88,19 +84,37 @@ class RoutineCard extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Delete Routine?', style: TextStyle(color: Colors.white)),
-        content: Text('Delete "$name"? This cannot be undone.', style: const TextStyle(color: Colors.white70)),
+        title: Text(
+          'Delete Routine?',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        content: Text(
+          'Delete "$name"? This cannot be undone.',
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: AppColors.secondaryText,
+              ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.secondaryText)),
+            child: Text(
+              'Cancel',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: AppColors.secondaryText,
+                  ),
+            ),
           ),
           TextButton(
             onPressed: () {
-              context.read<StrengthProvider>().deleteRoutine(id);
+              ctx.read<StrengthProvider>().deleteRoutine(id);
               Navigator.pop(ctx);
             },
-            child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+            child: Text(
+              'Delete',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: AppColors.error,
+                  ),
+            ),
           ),
         ],
       ),
