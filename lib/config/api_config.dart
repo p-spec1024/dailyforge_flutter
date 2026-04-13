@@ -33,6 +33,10 @@ class ApiConfig {
   static const String breathworkTechniques = '/breathwork/techniques';
   static const String breathworkLog = '/breathwork/log';
 
+  // Dashboard
+  static const String dashboard = '/dashboard';
+  static const String workoutToday = '/workout/today';
+
   // Analytics
   static const String progressionData = '/analytics/progression';
   static const String suggestions = '/analytics/suggestions';

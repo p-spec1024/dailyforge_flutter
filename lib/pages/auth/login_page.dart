@@ -133,7 +133,7 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 20),
                   TextButton(
                     onPressed: () => context.go('/register'),
-                    child: Text(
+                    child: const Text(
                       "Don't have an account? Register",
                       style: TextStyle(color: AppColors.secondaryText),
                     ),

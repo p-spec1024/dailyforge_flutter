@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'config/theme.dart';
 import 'config/routes.dart';
 import 'providers/auth_provider.dart';
+import 'providers/dashboard_provider.dart';
+import 'providers/strength_provider.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
 import 'services/storage_service.dart';
@@ -22,6 +24,8 @@ class DailyForgeApp extends StatefulWidget {
 
 class _DailyForgeAppState extends State<DailyForgeApp> {
   late final AuthProvider _authProvider;
+  late final DashboardProvider _dashboardProvider;
+  late final StrengthProvider _strengthProvider;
   late final GoRouter _router;
 
   @override
@@ -30,8 +34,13 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
     final storage = StorageService();
     final api = ApiService(storage);
     final authService = AuthService(api, storage);
+    
     _authProvider = AuthProvider(authService, api);
     _authProvider.initialize();
+    
+    _dashboardProvider = DashboardProvider(api);
+    _strengthProvider = StrengthProvider(api);
+    
     _router = createRouter(_authProvider);
   }
 
@@ -39,13 +48,19 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
   void dispose() {
     _router.dispose();
     _authProvider.dispose();
+    _dashboardProvider.dispose();
+    _strengthProvider.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<AuthProvider>.value(
-      value: _authProvider,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthProvider>.value(value: _authProvider),
+        ChangeNotifierProvider<DashboardProvider>.value(value: _dashboardProvider),
+        ChangeNotifierProvider<StrengthProvider>.value(value: _strengthProvider),
+      ],
       child: MaterialApp.router(
         title: 'DailyForge',
         debugShowCheckedModeBanner: false,

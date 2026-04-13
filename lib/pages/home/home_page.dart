@@ -1,17 +1,495 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
+import '../../config/theme.dart';
+import '../../providers/dashboard_provider.dart';
+import '../../widgets/glass_card.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<DashboardProvider>().refresh();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Text(
-          'Home',
-          style: Theme.of(context).textTheme.headlineLarge,
+      body: Consumer<DashboardProvider>(
+        builder: (context, provider, _) {
+          if (provider.isLoading && provider.dashboardData == null) {
+            return _buildSkeleton();
+          }
+
+          if (provider.error != null && provider.dashboardData == null) {
+            return _buildError(provider);
+          }
+
+          return RefreshIndicator(
+            color: AppColors.gold,
+            backgroundColor: AppColors.surface,
+            onRefresh: () => provider.refresh(),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 56, 16, 24),
+              children: [
+                _GreetingRow(provider: provider),
+                const SizedBox(height: 20),
+                _TodaySessionCard(provider: provider),
+                const SizedBox(height: 20),
+                _QuickStartButtons(),
+                const SizedBox(height: 20),
+                _WeekProgress(provider: provider),
+                const SizedBox(height: 20),
+                _RecentWinsCard(provider: provider),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSkeleton() {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 56, 16, 24),
+      children: [
+        // Greeting skeleton
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _skeletonBox(180, 24),
+            _skeletonBox(50, 24),
+          ],
+        ),
+        const SizedBox(height: 20),
+        // Today card skeleton
+        _skeletonBox(double.infinity, 180),
+        const SizedBox(height: 20),
+        // Quick start skeleton
+        Row(
+          children: [
+            Expanded(child: _skeletonBox(double.infinity, 80)),
+            const SizedBox(width: 10),
+            Expanded(child: _skeletonBox(double.infinity, 80)),
+            const SizedBox(width: 10),
+            Expanded(child: _skeletonBox(double.infinity, 80)),
+          ],
+        ),
+        const SizedBox(height: 20),
+        // Week dots skeleton
+        _skeletonBox(double.infinity, 60),
+        const SizedBox(height: 20),
+        // Recent wins skeleton
+        _skeletonBox(double.infinity, 100),
+      ],
+    );
+  }
+
+  Widget _skeletonBox(double width, double height) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+    );
+  }
+
+  Widget _buildError(DashboardProvider provider) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(LucideIcons.wifiOff, size: 48, color: AppColors.secondaryText),
+            const SizedBox(height: 16),
+            Text(
+              provider.error ?? 'Something went wrong',
+              style: Theme.of(context).textTheme.bodyLarge,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => provider.refresh(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.gold,
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('Retry'),
+            ),
+          ],
         ),
       ),
     );
+  }
+}
+
+// --- Section Widgets ---
+
+class _GreetingRow extends StatelessWidget {
+  final DashboardProvider provider;
+  const _GreetingRow({required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Flexible(
+          child: Text(
+            provider.greeting,
+            style: Theme.of(context).textTheme.headlineSmall,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('🔥', style: TextStyle(fontSize: 20)),
+            const SizedBox(width: 4),
+            Text(
+              '${provider.currentStreak}',
+              style: monoStyle.copyWith(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.gold,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _TodaySessionCard extends StatelessWidget {
+  final DashboardProvider provider;
+  const _TodaySessionCard({required this.provider});
+
+  static const _phaseConfig = <String, _PhaseInfo>{
+    'opening_breathwork': _PhaseInfo('Br', Color(0xFF3B82F6)),
+    'warmup': _PhaseInfo('Wm', Color(0xFF14B8A6)),
+    'main': _PhaseInfo('St', Color(0xFFF59E0B)),
+    'cooldown': _PhaseInfo('Cl', Color(0xFF14B8A6)),
+    'closing_breathwork': _PhaseInfo('En', Color(0xFF3B82F6)),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final workout = provider.todayWorkout;
+
+    if (workout == null) {
+      return GlassCard(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Text(
+              'No workout scheduled for today',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final dayLabel = (workout['day_label'] as String? ?? '').toUpperCase();
+    final name = workout['name'] as String? ?? '';
+    final phases = workout['phases'] as List<dynamic>? ?? [];
+    final exerciseCount = phases.fold<int>(
+        0, (sum, p) => sum + ((p['exercises'] as List<dynamic>?)?.length ?? 0));
+    // Rough estimate: ~3 min per exercise
+    final estMinutes = exerciseCount * 3;
+
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            dayLabel,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  letterSpacing: 1.5,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            name,
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 12),
+          // Phase dots
+          Row(
+            children: phases.map<Widget>((p) {
+              final phaseKey = p['phase'] as String? ?? '';
+              final info = _phaseConfig[phaseKey];
+              if (info == null) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: info.color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      info.label,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: info.color,
+                          ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '$exerciseCount exercises  •  ~$estMinutes min',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: null, // Placeholder for S8-T3
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.strength,
+                disabledBackgroundColor: AppColors.strength.withValues(alpha: 0.6),
+                disabledForegroundColor: Colors.white70,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Start Full Session',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhaseInfo {
+  final String label;
+  final Color color;
+  const _PhaseInfo(this.label, this.color);
+}
+
+class _QuickStartButtons extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      children: [
+        Expanded(
+          child: _QuickStartCard(
+            label: 'Strength',
+            icon: LucideIcons.dumbbell,
+            color: AppColors.strength,
+          ),
+        ),
+        SizedBox(width: 10),
+        Expanded(
+          child: _QuickStartCard(
+            label: 'Yoga',
+            icon: LucideIcons.personStanding,
+            color: AppColors.yoga,
+          ),
+        ),
+        SizedBox(width: 10),
+        Expanded(
+          child: _QuickStartCard(
+            label: 'Breathwork',
+            icon: LucideIcons.wind,
+            color: Color(0xFFa78bfa), // purple
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickStartCard extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  const _QuickStartCard({
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      borderColor: color,
+      onTap: null, // Placeholder for S8-T3
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: color,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeekProgress extends StatelessWidget {
+  final DashboardProvider provider;
+  const _WeekProgress({required this.provider});
+
+  static const _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  @override
+  Widget build(BuildContext context) {
+    final dots = provider.weekDots;
+    // Monday = 1, today's index in 0-based Mon–Sun
+    final todayIndex = DateTime.now().weekday - 1;
+
+    return GlassCard(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: List.generate(7, (i) {
+          final active = dots[i];
+          final isToday = i == todayIndex;
+
+          return Column(
+            children: [
+              Text(
+                _dayLabels[i],
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: active ? AppColors.gold : Colors.transparent,
+                  border: Border.all(
+                    color: isToday
+                        ? AppColors.gold
+                        : (active
+                            ? AppColors.gold
+                            : AppColors.secondaryText.withValues(alpha: 0.3)),
+                    width: isToday ? 2 : 1,
+                  ),
+                ),
+              ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _RecentWinsCard extends StatelessWidget {
+  final DashboardProvider provider;
+  const _RecentWinsCard({required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    final prs = provider.recentPRs;
+    final milestone = provider.milestone;
+    final hasContent = prs.isNotEmpty || milestone != null;
+
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Recent Wins',
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+          const SizedBox(height: 12),
+          if (!hasContent)
+            Text(
+              'Start your first workout to see wins here!',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          if (prs.isNotEmpty)
+            ...prs.take(3).map((pr) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      const Text('🏆', style: TextStyle(fontSize: 16)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          pr['exercise_name'] as String? ?? '',
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      ),
+                      Text(
+                        _formatPRValue(pr),
+                        style: monoStyle.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.gold,
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
+          if (milestone != null) ...[
+            if (prs.isNotEmpty) const SizedBox(height: 4),
+            Row(
+              children: [
+                const Text('🎯', style: TextStyle(fontSize: 16)),
+                const SizedBox(width: 8),
+                Text(
+                  milestone['label'] as String? ?? '',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: AppColors.gold,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _formatPRValue(Map<String, dynamic> pr) {
+    final value = pr['value'];
+    final type = pr['type'] as String? ?? '';
+    if (type == 'weight') return '${value}kg';
+    if (type == 'reps') return '$value reps';
+    if (type == 'duration') return '${value}s';
+    return '$value';
   }
 }

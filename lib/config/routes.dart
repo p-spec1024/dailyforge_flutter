@@ -97,7 +97,7 @@ class _ScaffoldWithNav extends StatelessWidget {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: currentIndex,
         onTap: (index) => context.go(_tabs[index]),
-        items: [
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(LucideIcons.home),
             label: 'Home',
