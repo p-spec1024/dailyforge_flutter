@@ -3,22 +3,27 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../config/theme.dart';
 import '../../providers/workout_session_provider.dart';
 import '../glass_card.dart';
+import 'pr_badge.dart';
 import 'set_row.dart';
 
 class ExerciseSessionCard extends StatelessWidget {
   final Map<String, dynamic> exercise;
   final List<SetData> sets;
   final PreviousData? previousData;
+  final Map<String, bool>? prs;
   final void Function(int setNumber, double weight, int reps) onLogSet;
   final VoidCallback onAddSet;
+  final VoidCallback? onSwap;
 
   const ExerciseSessionCard({
     super.key,
     required this.exercise,
     required this.sets,
     this.previousData,
+    this.prs,
     required this.onLogSet,
     required this.onAddSet,
+    this.onSwap,
   });
 
   @override
@@ -28,19 +33,59 @@ class ExerciseSessionCard extends StatelessWidget {
     final muscleList =
         muscles.isNotEmpty ? muscles.split(',').map((s) => s.trim()).toList() : <String>[];
 
-    return GlassCard(
-      borderColor: AppColors.strength,
+    final hasPr = prs != null &&
+        (prs!['weight'] == true ||
+            prs!['volume'] == true ||
+            prs!['reps'] == true);
+    // ignore: avoid_print
+    print('Exercise ${exercise['id']} hasPr: $hasPr prs: $prs');
+
+    final card = GlassCard(
+      borderColor: hasPr ? AppColors.gold : AppColors.strength,
       margin: const EdgeInsets.only(bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Exercise name
-          Text(
-            name,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontSize: 16,
+          // Exercise name + swap icon
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  name,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontSize: 16,
+                      ),
                 ),
+              ),
+              if (onSwap != null)
+                InkWell(
+                  onTap: onSwap,
+                  borderRadius: BorderRadius.circular(6),
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(
+                      LucideIcons.repeat,
+                      size: 16,
+                      color: AppColors.secondaryText,
+                    ),
+                  ),
+                ),
+            ],
           ),
+          if (hasPr) ...[
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (prs!['weight'] == true)
+                  const PrBadge(type: 'weight'),
+                if (prs!['volume'] == true)
+                  const PrBadge(type: 'volume'),
+                if (prs!['reps'] == true) const PrBadge(type: 'reps'),
+              ],
+            ),
+          ],
           if (muscleList.isNotEmpty) ...[
             const SizedBox(height: 6),
             Wrap(
@@ -143,6 +188,23 @@ class ExerciseSessionCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    if (!hasPr) return card;
+
+    // Gold glow wrapper when a PR is detected on this exercise.
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.gold.withValues(alpha: 0.25),
+            blurRadius: 16,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: card,
     );
   }
 

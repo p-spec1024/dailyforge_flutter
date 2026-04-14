@@ -6,9 +6,11 @@ import '../config/theme.dart';
 import '../providers/settings_provider.dart';
 import '../providers/workout_session_provider.dart';
 import '../widgets/workout/exercise_session_card.dart';
+import '../widgets/workout/exercise_swap_sheet.dart';
 import '../widgets/workout/rest_timer.dart';
 import '../widgets/workout/session_header.dart';
 import '../widgets/workout/settings_modal.dart';
+import 'workout/session_summary_page.dart';
 
 class WorkoutPage extends StatefulWidget {
   final int? workoutId;
@@ -105,11 +107,53 @@ class _WorkoutPageState extends State<WorkoutPage> {
     );
 
     if (confirmed == true && mounted) {
+      // Capture totals before completeSession clears provider state.
+      final elapsed = session.elapsedSeconds;
+      final volume = session.totalVolume;
+      final setsCount = session.totalSets;
+      final exerciseCount = session.exercises.length;
+
       final result = await session.completeSession();
-      if (mounted && result != null) {
-        context.go('/home');
-      }
+      if (!mounted || result == null) return;
+
+      final summary =
+          (result['summary'] as Map<String, dynamic>?) ?? const {};
+      final prs = (result['prs'] as List?)
+              ?.whereType<Map<String, dynamic>>()
+              .toList() ??
+          <Map<String, dynamic>>[];
+
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => SessionSummaryPage(
+            durationSeconds:
+                (summary['duration'] as num?)?.toInt() ?? elapsed,
+            totalVolume:
+                (summary['total_volume'] as num?) ?? volume,
+            totalSets:
+                (summary['total_sets'] as num?)?.toInt() ?? setsCount,
+            exercisesCompleted:
+                (summary['exercises_completed'] as num?)?.toInt() ??
+                    exerciseCount,
+            prs: prs,
+            onDone: () {
+              if (!mounted) return;
+              context.go('/home');
+            },
+          ),
+        ),
+      );
     }
+  }
+
+  void _handleSwap(
+      WorkoutSessionProvider session, int exerciseId, String name) {
+    ExerciseSwapSheet.show(
+      context,
+      exerciseId: exerciseId,
+      currentExerciseName: name,
+      onSwap: (newExercise) => session.swapExercise(exerciseId, newExercise),
+    );
   }
 
   Future<void> _handleDiscard(WorkoutSessionProvider session) async {
@@ -267,6 +311,8 @@ class _WorkoutPageState extends State<WorkoutPage> {
                                         const [],
                                     previousData:
                                         session.previousPerformance[exerciseId],
+                                    prs:
+                                        session.getExercisePrs(exerciseId),
                                     onLogSet: (setNumber, weight, reps) {
                                       _handleLogSet(session, exerciseId,
                                           setNumber, weight, reps);
@@ -274,6 +320,13 @@ class _WorkoutPageState extends State<WorkoutPage> {
                                     onAddSet: () {
                                       session.addSet(exerciseId);
                                     },
+                                    onSwap: session.workoutId == null
+                                        ? null
+                                        : () => _handleSwap(
+                                            session,
+                                            exerciseId,
+                                            exercise['name'] as String? ??
+                                                ''),
                                   );
                                 },
                               ),

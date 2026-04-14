@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import '../config/api_config.dart';
 import '../services/api_service.dart';
 
@@ -82,6 +83,9 @@ class WorkoutSessionProvider extends ChangeNotifier {
   Map<int, List<SetData>> _exerciseSets = {};
   Map<int, PreviousData> _previousPerformance = {};
 
+  // exerciseId -> {weight: bool, volume: bool, reps: bool}
+  Map<int, Map<String, bool>> _exercisePrs = {};
+
   Timer? _timer;
 
   // --- Rest timer state ---
@@ -111,6 +115,8 @@ class WorkoutSessionProvider extends ChangeNotifier {
 
   Map<int, PreviousData> get previousPerformance =>
       Map<int, PreviousData>.unmodifiable(_previousPerformance);
+
+  Map<String, bool>? getExercisePrs(int exerciseId) => _exercisePrs[exerciseId];
 
   int get totalSets => _exerciseSets.values.fold(
       0, (sum, sets) => sum + sets.where((s) => s.completed).length);
@@ -282,6 +288,30 @@ class WorkoutSessionProvider extends ChangeNotifier {
       }
       _exerciseSets[exerciseId] = sets;
 
+      // ignore: avoid_print
+      print('[PR] log-set response for exercise=$exerciseId keys=${response.keys.toList()} prs=${response['prs']} (runtimeType=${response['prs']?.runtimeType})');
+      final prs = response['prs'];
+      if (prs is Map) {
+        final weight = prs['weight'] == true;
+        final volume = prs['volume'] == true;
+        final reps = prs['reps'] == true;
+        // ignore: avoid_print
+        print('[PR] parsed weight=$weight volume=$volume reps=$reps');
+        if (weight || volume || reps) {
+          _exercisePrs[exerciseId] = {
+            'weight': weight,
+            'volume': volume,
+            'reps': reps,
+          };
+          unawaited(HapticFeedback.mediumImpact());
+          // ignore: avoid_print
+          print('PR DETECTED: $prs for exercise $exerciseId');
+        }
+      } else {
+        // ignore: avoid_print
+        print('[PR] prs field missing or not a Map');
+      }
+
       notifyListeners();
       return response;
     } on ApiException catch (e) {
@@ -306,6 +336,62 @@ class WorkoutSessionProvider extends ChangeNotifier {
       reps: prev?.reps ?? 0,
     ));
     _exerciseSets[exerciseId] = sets;
+    notifyListeners();
+  }
+
+  /// Fetch alternative exercises for a slot in the current workout.
+  Future<Map<String, dynamic>?> fetchAlternatives(int exerciseId) async {
+    if (_workoutId == null) return null;
+    try {
+      return await _api
+          .get('/workout/$_workoutId/slots/$exerciseId/alternatives');
+    } on ApiException catch (e) {
+      debugPrint('Failed to fetch alternatives: ${e.message}');
+      return null;
+    }
+  }
+
+  /// Save a preferred exercise for a slot. Returns true on success.
+  Future<bool> saveExercisePreference(
+      int originalExerciseId, int chosenExerciseId) async {
+    try {
+      await _api.put('/workout/slot/$originalExerciseId/choose', {
+        'chosen_exercise_id': chosenExerciseId,
+      });
+      return true;
+    } on ApiException catch (e) {
+      debugPrint('Failed to save preference: ${e.message}');
+      return false;
+    }
+  }
+
+  /// Swap an exercise locally with a new one. Initializes default sets and
+  /// clears any PR state for the original exercise.
+  Future<void> swapExercise(
+      int originalExerciseId, Map<String, dynamic> newExercise) async {
+    final idx = _exercises.indexWhere(
+        (e) => _parseId(e['id']) == originalExerciseId);
+    if (idx < 0) return;
+
+    final newId = _parseId(newExercise['id']);
+    // `...newExercise` wins on conflict; fall back to the slot's default_sets.
+    final mergedExercise = <String, dynamic>{
+      'default_sets': _exercises[idx]['default_sets'],
+      ...newExercise,
+    };
+    _exercises[idx] = mergedExercise;
+
+    final defaultSets = (mergedExercise['default_sets'] as num?)?.toInt() ?? 3;
+    _exerciseSets.remove(originalExerciseId);
+    _exerciseSets[newId] = List<SetData>.generate(
+      defaultSets,
+      (i) => SetData(setNumber: i + 1),
+    );
+    _exercisePrs.remove(originalExerciseId);
+    _previousPerformance.remove(originalExerciseId);
+    notifyListeners();
+
+    await _fetchPreviousPerformance([mergedExercise]);
     notifyListeners();
   }
 
@@ -460,6 +546,7 @@ class WorkoutSessionProvider extends ChangeNotifier {
     _exercises = <Map<String, dynamic>>[];
     _exerciseSets = <int, List<SetData>>{};
     _previousPerformance = <int, PreviousData>{};
+    _exercisePrs = <int, Map<String, bool>>{};
     _isRestTimerActive = false;
   }
 

@@ -8,7 +8,9 @@
       "Bash(git checkout:*)",
       "Bash(flutter run:*)",
       "Bash(flutter devices:*)",
-      "Bash(gh pr:*)"
+      "Bash(gh pr:*)",
+      "Bash(dart format:*)",
+      "Bash(find . -name \"*.dart\" -not -path \"./build/*\" -not -path \"./.dart_tool/*\" -exec grep -l \"PrBadge\\\\|pr_badge\" {} \\\\;)"
     ]
   }
 }
