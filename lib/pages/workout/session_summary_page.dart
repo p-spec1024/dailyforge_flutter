@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../config/theme.dart';
 import '../../widgets/glass_card.dart';
+import '../../widgets/workout/save_routine_sheet.dart';
 
-class SessionSummaryPage extends StatelessWidget {
+class SessionSummaryPage extends StatefulWidget {
   final int durationSeconds;
   final num totalVolume;
   final int totalSets;
   final int exercisesCompleted;
   final List<Map<String, dynamic>> prs;
+  final List<Map<String, dynamic>> exercises;
   final VoidCallback onDone;
 
   const SessionSummaryPage({
@@ -19,7 +21,31 @@ class SessionSummaryPage extends StatelessWidget {
     required this.exercisesCompleted,
     required this.prs,
     required this.onDone,
+    this.exercises = const [],
   });
+
+  @override
+  State<SessionSummaryPage> createState() => _SessionSummaryPageState();
+}
+
+class _SessionSummaryPageState extends State<SessionSummaryPage> {
+  bool _routineSaved = false;
+  bool _savePending = false;
+
+  Future<void> _handleSaveRoutine() async {
+    if (_savePending || _routineSaved) return;
+    setState(() => _savePending = true);
+    await SaveRoutineSheet.show(
+      context,
+      exercises: widget.exercises,
+      onSaved: (_) {
+        if (!mounted) return;
+        setState(() => _routineSaved = true);
+      },
+    );
+    if (!mounted) return;
+    setState(() => _savePending = false);
+  }
 
   String _formatDuration(int seconds) {
     final h = seconds ~/ 3600;
@@ -61,7 +87,7 @@ class SessionSummaryPage extends StatelessWidget {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) onDone();
+        if (!didPop) widget.onDone();
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
@@ -96,7 +122,7 @@ class SessionSummaryPage extends StatelessWidget {
                         children: [
                           Expanded(
                             child: _StatCard(
-                              value: _formatDuration(durationSeconds),
+                              value: _formatDuration(widget.durationSeconds),
                               label: 'Duration',
                               icon: LucideIcons.clock,
                             ),
@@ -105,7 +131,7 @@ class SessionSummaryPage extends StatelessWidget {
                           Expanded(
                             child: _StatCard(
                               value:
-                                  '${totalVolume.toStringAsFixed(0)}kg',
+                                  '${widget.totalVolume.toStringAsFixed(0)}kg',
                               label: 'Volume',
                               icon: LucideIcons.dumbbell,
                             ),
@@ -117,7 +143,7 @@ class SessionSummaryPage extends StatelessWidget {
                         children: [
                           Expanded(
                             child: _StatCard(
-                              value: '$totalSets',
+                              value: '${widget.totalSets}',
                               label: 'Sets',
                               icon: LucideIcons.checkCircle,
                             ),
@@ -125,14 +151,14 @@ class SessionSummaryPage extends StatelessWidget {
                           const SizedBox(width: 12),
                           Expanded(
                             child: _StatCard(
-                              value: '$exercisesCompleted',
+                              value: '${widget.exercisesCompleted}',
                               label: 'Exercises',
                               icon: LucideIcons.list,
                             ),
                           ),
                         ],
                       ),
-                      if (prs.isNotEmpty) ...[
+                      if (widget.prs.isNotEmpty) ...[
                         const SizedBox(height: 24),
                         GlassCard(
                           borderColor: AppColors.gold,
@@ -157,7 +183,7 @@ class SessionSummaryPage extends StatelessWidget {
                                 ],
                               ),
                               const SizedBox(height: 12),
-                              ...prs.map((pr) => Padding(
+                              ...widget.prs.map((pr) => Padding(
                                     padding:
                                         const EdgeInsets.only(bottom: 6),
                                     child: Row(
@@ -194,11 +220,11 @@ class SessionSummaryPage extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: onDone,
+                    onPressed: widget.onDone,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.strength,
                       foregroundColor: Colors.white,
@@ -218,6 +244,41 @@ class SessionSummaryPage extends StatelessWidget {
                   ),
                 ),
               ),
+              if (widget.exercises.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: (_routineSaved || _savePending)
+                          ? null
+                          : _handleSaveRoutine,
+                      icon: Icon(
+                        _routineSaved
+                            ? LucideIcons.check
+                            : LucideIcons.clipboardList,
+                        size: 18,
+                      ),
+                      label: Text(
+                        _routineSaved ? 'Routine Saved' : 'Save as Routine',
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _routineSaved
+                            ? AppColors.success
+                            : AppColors.gold,
+                        side: BorderSide(
+                          color: _routineSaved
+                              ? AppColors.success
+                              : AppColors.gold,
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

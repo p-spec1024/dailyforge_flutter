@@ -25,6 +25,7 @@ class DailyForgeApp extends StatefulWidget {
 }
 
 class _DailyForgeAppState extends State<DailyForgeApp> {
+  late final ApiService _apiService;
   late final AuthProvider _authProvider;
   late final DashboardProvider _dashboardProvider;
   late final StrengthProvider _strengthProvider;
@@ -38,7 +39,8 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
     final storage = StorageService();
     final api = ApiService(storage);
     final authService = AuthService(api, storage);
-    
+    _apiService = api;
+
     _authProvider = AuthProvider(authService, api);
     _authProvider.initialize();
     
@@ -78,6 +80,10 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // ApiService has no disposable resources (no pool, no streams), so
+        // Provider.value is safe here. Revisit if ApiService ever owns a
+        // persistent http.Client or similar.
+        Provider<ApiService>.value(value: _apiService),
         ChangeNotifierProvider<AuthProvider>.value(value: _authProvider),
         ChangeNotifierProvider<DashboardProvider>.value(value: _dashboardProvider),
         ChangeNotifierProvider<StrengthProvider>.value(value: _strengthProvider),

@@ -4,7 +4,9 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../providers/dashboard_provider.dart';
+import '../../providers/workout_session_provider.dart';
 import '../../widgets/glass_card.dart';
+import '../../widgets/workout/resume_banner.dart';
 
 /// Extract workout ID and exercises from the main phase only.
 /// Warmup/cooldown phases contain yoga poses and are excluded.
@@ -34,6 +36,9 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   String? _lastShownError;
+  Map<String, dynamic>? _activeSession;
+  bool _checkingActive = false;
+  bool _wasSessionActive = false;
 
   @override
   void initState() {
@@ -44,14 +49,81 @@ class _HomePageState extends State<HomePage> {
       if (provider.dashboardData == null) {
         provider.refresh();
       }
+      final session = context.read<WorkoutSessionProvider>();
+      _wasSessionActive = session.isActive;
+      session.addListener(_onSessionChanged);
+      _refreshActiveSession();
     });
   }
 
   @override
   void dispose() {
-    // Safe: provider outlives this widget.
     context.read<DashboardProvider>().removeListener(_maybeShowErrorSnack);
+    context.read<WorkoutSessionProvider>().removeListener(_onSessionChanged);
     super.dispose();
+  }
+
+  /// Re-check `/session/active` whenever the in-app session transitions
+  /// (active → idle or idle → active) so the banner never goes stale when
+  /// the user pops back from `/workout`.
+  void _onSessionChanged() {
+    final session = context.read<WorkoutSessionProvider>();
+    if (session.isActive != _wasSessionActive) {
+      _wasSessionActive = session.isActive;
+      _refreshActiveSession();
+    }
+  }
+
+  Future<void> _refreshActiveSession() async {
+    if (_checkingActive) return;
+    _checkingActive = true;
+    try {
+      final session = context.read<WorkoutSessionProvider>();
+      // Don't show the banner while the user is actively in a session in-app.
+      if (session.isActive) {
+        if (!mounted) return;
+        setState(() => _activeSession = null);
+        return;
+      }
+      final data = await session.checkActiveSession();
+      if (!mounted) return;
+      setState(() => _activeSession = data);
+    } finally {
+      _checkingActive = false;
+    }
+  }
+
+  void _handleResume() {
+    final data = _activeSession;
+    if (data == null) return;
+    context.push('/workout/empty', extra: {'resumeData': data});
+    setState(() => _activeSession = null);
+  }
+
+  Future<void> _handleDiscard() async {
+    final data = _activeSession;
+    if (data == null) return;
+    final sessionJson = data['session'] as Map<String, dynamic>?;
+    final rawId = sessionJson?['id'];
+    final sessionId = rawId is num
+        ? rawId.toInt()
+        : (rawId is String ? int.tryParse(rawId) : null);
+    if (sessionId == null) return;
+    final ok = await context
+        .read<WorkoutSessionProvider>()
+        .discardActiveSession(sessionId);
+    if (!mounted) return;
+    if (ok) {
+      setState(() => _activeSession = null);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not discard session. Try again.'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   void _maybeShowErrorSnack() {
@@ -95,12 +167,30 @@ class _HomePageState extends State<HomePage> {
           return RefreshIndicator(
             color: AppColors.gold,
             backgroundColor: AppColors.surface,
-            onRefresh: () => provider.refresh(),
+            onRefresh: () async {
+              await Future.wait([
+                provider.refresh(),
+                _refreshActiveSession(),
+              ]);
+            },
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 56, 16, 24),
               children: [
                 _GreetingRow(provider: provider),
                 const SizedBox(height: 20),
+                if (_activeSession != null) ...[
+                  ResumeBanner(
+                    startedAt: DateTime.tryParse(
+                          _activeSession!['session']?['started_at']
+                                  as String? ??
+                              '',
+                        ) ??
+                        DateTime.now(),
+                    onResume: _handleResume,
+                    onDiscard: _handleDiscard,
+                  ),
+                  const SizedBox(height: 20),
+                ],
                 _TodaySessionCard(provider: provider),
                 const SizedBox(height: 20),
                 _QuickStartButtons(provider: provider),

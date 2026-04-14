@@ -323,6 +323,150 @@ class WorkoutSessionProvider extends ChangeNotifier {
     }
   }
 
+  /// Whether an exercise is already in the current session.
+  bool hasExercise(int exerciseId) {
+    return _exercises.any((e) => _parseId(e['id']) == exerciseId);
+  }
+
+  /// Add an exercise to the active session (mid-workout).
+  /// Dedupes by id, initializes default sets, and fetches previous performance.
+  Future<void> addExercise(Map<String, dynamic> exercise) async {
+    final id = _parseId(exercise['id']);
+    if (_exercises.any((e) => _parseId(e['id']) == id)) return;
+
+    final defaultSets = (exercise['default_sets'] as num?)?.toInt() ?? 3;
+    _exercises = List<Map<String, dynamic>>.from(_exercises)..add(exercise);
+    _exerciseSets[id] = List<SetData>.generate(
+      defaultSets,
+      (i) => SetData(setNumber: i + 1),
+    );
+    notifyListeners();
+
+    await _fetchPreviousPerformance([exercise]);
+    notifyListeners();
+  }
+
+  /// Batched add for routine pre-load: mutates state once, fetches previous
+  /// performance for all new exercises in a single request.
+  Future<void> addExercises(List<Map<String, dynamic>> exercises) async {
+    final added = <Map<String, dynamic>>[];
+    final nextList = List<Map<String, dynamic>>.from(_exercises);
+    for (final ex in exercises) {
+      final id = _parseId(ex['id']);
+      if (nextList.any((e) => _parseId(e['id']) == id)) continue;
+      final defaultSets = (ex['default_sets'] as num?)?.toInt() ?? 3;
+      nextList.add(ex);
+      _exerciseSets[id] = List<SetData>.generate(
+        defaultSets,
+        (i) => SetData(setNumber: i + 1),
+      );
+      added.add(ex);
+    }
+    if (added.isEmpty) return;
+    _exercises = nextList;
+    notifyListeners();
+
+    await _fetchPreviousPerformance(added);
+    notifyListeners();
+  }
+
+  /// Check for an unfinished session on the server.
+  /// Returns `{session, logged_sets}` or null on none / error.
+  /// Filters out sessions already marked completed.
+  Future<Map<String, dynamic>?> checkActiveSession() async {
+    try {
+      final response = await _api.get(ApiConfig.sessionActive);
+      final session = response['session'];
+      if (session is! Map) return null;
+      if (session['completed'] == true) return null;
+      return response;
+    } on ApiException catch (e) {
+      debugPrint('Failed to check active session: ${e.message}');
+      return null;
+    }
+  }
+
+  /// Resume an unfinished session by hydrating state from `/session/active`
+  /// data. Fully resolves all fetches before flipping `_isActive`, so the UI
+  /// never sees an "active but empty" intermediate state.
+  Future<void> resumeActiveSession(Map<String, dynamic> sessionData) async {
+    if (_isLoading || _isActive) return;
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final session = sessionData['session'] as Map<String, dynamic>;
+      if (session['completed'] == true) {
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+      final loggedSets =
+          (sessionData['logged_sets'] as List<dynamic>? ?? const []);
+
+      // Unique exercise ids preserving insertion order.
+      final seen = <int>{};
+      final orderedIds = <int>[];
+      for (final raw in loggedSets) {
+        if (raw is! Map) continue;
+        final exId = _parseId(raw['exercise_id']);
+        if (seen.add(exId)) orderedIds.add(exId);
+      }
+
+      // Fetch all exercises in parallel.
+      final results = await Future.wait(orderedIds.map((id) async {
+        try {
+          return await _api.get(ApiConfig.exercise(id));
+        } on ApiException catch (e) {
+          debugPrint('Failed to fetch exercise $id during resume: ${e.message}');
+          return null;
+        }
+      }));
+      final fetched = results
+          .whereType<Map<String, dynamic>>()
+          .toList(growable: false);
+
+      // Build full local state before flipping isActive.
+      _sessionId = _parseId(session['id']);
+      _workoutId = session['workout_id'] != null
+          ? _parseId(session['workout_id'])
+          : null;
+      _startedAt = DateTime.parse(session['started_at'] as String);
+      _exercises = List<Map<String, dynamic>>.from(fetched);
+      _initializeDefaultSets(fetched);
+      _overlayLoggedSets(loggedSets);
+      await _fetchPreviousPerformance(fetched);
+
+      _isActive = true;
+      _startTimer();
+      _isLoading = false;
+      notifyListeners();
+    } on ApiException catch (e) {
+      _error = e.message;
+      _isLoading = false;
+      notifyListeners();
+    } catch (e, st) {
+      _error = 'Failed to resume session: $e';
+      _isLoading = false;
+      notifyListeners();
+      debugPrint('Unexpected error resuming session: $e\n$st');
+    }
+  }
+
+  /// Discard a server-side active session. Returns true on success so the UI
+  /// can reconcile state; surfaces the error on failure.
+  Future<bool> discardActiveSession(int sessionId) async {
+    try {
+      await _api.delete(ApiConfig.sessionDelete(sessionId));
+      return true;
+    } on ApiException catch (e) {
+      _error = e.message;
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Add a new empty set row for an exercise (local only).
   void addSet(int exerciseId) {
     final sets = List<SetData>.of(_exerciseSets[exerciseId] ?? <SetData>[]);
@@ -469,6 +613,27 @@ class WorkoutSessionProvider extends ChangeNotifier {
     throw FormatException('Cannot parse id from: $value');
   }
 
+  /// Safely parse a double that may arrive as num or String (PostgreSQL
+  /// NUMERIC/DECIMAL columns come back as strings via the `pg` driver).
+  double _parseDouble(dynamic value) {
+    if (value == null) return 0;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  /// Safely parse an int that may arrive as num or String.
+  int _parseInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) {
+      final n = num.tryParse(value);
+      return n?.toInt() ?? 0;
+    }
+    return 0;
+  }
+
   void _initializeDefaultSets(List<Map<String, dynamic>> exercises) {
     _exerciseSets = <int, List<SetData>>{};
     for (final ex in exercises) {
@@ -483,19 +648,23 @@ class WorkoutSessionProvider extends ChangeNotifier {
 
   /// Overlay logged sets onto the already-initialized default sets.
   /// This preserves unlogged sets so the user sees the full workout.
+  ///
+  /// Note: PostgreSQL NUMERIC columns (`weight`, `reps_completed`) are
+  /// returned as strings by the `pg` Node driver, so we always parse
+  /// defensively.
   void _overlayLoggedSets(List<dynamic> loggedSets) {
     for (final raw in loggedSets) {
-      final s = raw as Map<String, dynamic>;
+      if (raw is! Map) continue;
+      final s = Map<String, dynamic>.from(raw);
       if (s['set_number'] == null) continue;
       final exId = _parseId(s['exercise_id']);
-      final setNumber = (s['set_number'] as num).toInt();
+      final setNumber = _parseInt(s['set_number']);
       final loggedSet = SetData(
         setNumber: setNumber,
-        weight: s['weight'] != null ? (s['weight'] as num).toDouble() : 0,
-        reps: s['reps'] != null
-            ? (s['reps_completed'] as num?)?.toInt() ??
-                (s['reps'] as num).toInt()
-            : 0,
+        weight: _parseDouble(s['weight']),
+        // Server aliases `reps_completed` as `reps` on some endpoints and
+        // returns it raw on others — accept either.
+        reps: _parseInt(s['reps_completed'] ?? s['reps']),
         completed: s['completed'] as bool? ?? false,
         setType: s['set_type'] as String? ?? 'normal',
       );

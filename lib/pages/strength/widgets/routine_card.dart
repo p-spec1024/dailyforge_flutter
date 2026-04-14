@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../../config/theme.dart';
@@ -32,7 +33,7 @@ class RoutineCard extends StatelessWidget {
       margin: const EdgeInsets.only(right: 12),
       child: GlassCard(
         padding: const EdgeInsets.all(16),
-        onTap: null, // Placeholder — wired in active session ticket
+        onTap: () => context.push('/workout/empty?routineId=$id'),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,

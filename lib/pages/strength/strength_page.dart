@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
@@ -73,7 +74,7 @@ class _StrengthPageState extends State<StrengthPage> {
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       child: GlassCard(
                         borderColor: AppColors.strength,
-                        onTap: null, // Placeholder — wired in active session ticket
+                        onTap: () => context.push('/workout/empty'),
                         child: Row(
                           children: [
                             Container(

@@ -56,6 +56,18 @@ GoRouter createRouter(AuthProvider authProvider) {
           );
         },
       ),
+      GoRoute(
+        path: '/workout/empty',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final routineId = int.tryParse(
+              state.uri.queryParameters['routineId'] ?? '');
+          return WorkoutPage(
+            routineId: routineId,
+            resumeData: extra?['resumeData'] as Map<String, dynamic>?,
+          );
+        },
+      ),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
         builder: (context, state, child) => _ScaffoldWithNav(child: child),

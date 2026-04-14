@@ -40,6 +40,10 @@ class ApiConfig {
 
   // Routines
   static const String routines = '/routines';
+  static String routine(int id) => '/routines/$id';
+
+  // Exercise detail
+  static String exercise(int id) => '/exercises/$id';
 
   // Yoga
   static const String yogaPoses = '/yoga/poses';

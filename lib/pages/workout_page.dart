@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import '../config/api_config.dart';
 import '../config/theme.dart';
 import '../providers/settings_provider.dart';
 import '../providers/workout_session_provider.dart';
+import '../services/api_service.dart';
+import '../widgets/workout/add_exercise_sheet.dart';
 import '../widgets/workout/exercise_session_card.dart';
 import '../widgets/workout/exercise_swap_sheet.dart';
 import '../widgets/workout/rest_timer.dart';
@@ -16,10 +19,19 @@ class WorkoutPage extends StatefulWidget {
   final int? workoutId;
   final List<Map<String, dynamic>>? initialExercises;
 
+  /// Optional routine to pre-load when starting an empty session.
+  final int? routineId;
+
+  /// If provided, resume an unfinished session instead of starting a new one.
+  /// Shape: `{session, logged_sets}` from `GET /session/active`.
+  final Map<String, dynamic>? resumeData;
+
   const WorkoutPage({
     super.key,
     this.workoutId,
     this.initialExercises,
+    this.routineId,
+    this.resumeData,
   });
 
   @override
@@ -42,10 +54,48 @@ class _WorkoutPageState extends State<WorkoutPage> {
     final provider = context.read<WorkoutSessionProvider>();
     if (provider.isActive) return; // Already in a session
 
+    if (widget.resumeData != null) {
+      await provider.resumeActiveSession(widget.resumeData!);
+      return;
+    }
+
     if (widget.workoutId != null && widget.initialExercises != null) {
       await provider.startSession(widget.workoutId!, widget.initialExercises!);
-    } else {
-      await provider.startEmptySession();
+      return;
+    }
+
+    await provider.startEmptySession();
+    if (!mounted || widget.routineId == null) return;
+    await _loadRoutine(widget.routineId!);
+  }
+
+  Future<void> _loadRoutine(int routineId) async {
+    final api = context.read<ApiService>();
+    final session = context.read<WorkoutSessionProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final routine = await api.get(ApiConfig.routine(routineId));
+      // Routine exercise rows expose the underlying exercise id as
+      // `exercise_id`; session provider keys off `id`.
+      final normalized = (routine['exercises'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map((ex) => <String, dynamic>{
+                ...ex,
+                'id': ex['exercise_id'] ?? ex['id'],
+                'default_sets':
+                    ex['target_sets'] ?? ex['default_sets'] ?? 3,
+              })
+          .toList();
+      await session.addExercises(normalized);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Could not load routine: ${e.message}'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -112,6 +162,10 @@ class _WorkoutPageState extends State<WorkoutPage> {
       final volume = session.totalVolume;
       final setsCount = session.totalSets;
       final exerciseCount = session.exercises.length;
+      // Snapshot exercises for the "Save as Routine" flow on the summary page.
+      final exercisesSnapshot = session.exercises
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
 
       final result = await session.completeSession();
       if (!mounted || result == null) return;
@@ -136,6 +190,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
                 (summary['exercises_completed'] as num?)?.toInt() ??
                     exerciseCount,
             prs: prs,
+            exercises: exercisesSnapshot,
             onDone: () {
               if (!mounted) return;
               context.go('/home');
@@ -153,6 +208,17 @@ class _WorkoutPageState extends State<WorkoutPage> {
       exerciseId: exerciseId,
       currentExerciseName: name,
       onSwap: (newExercise) => session.swapExercise(exerciseId, newExercise),
+    );
+  }
+
+  void _handleAddExercise(WorkoutSessionProvider session) {
+    final existing = session.exercises
+        .map((e) => (e['id'] as num).toInt())
+        .toSet();
+    AddExerciseSheet.show(
+      context,
+      existingIds: existing,
+      onAdd: (ex) => session.addExercise(ex),
     );
   }
 
@@ -277,59 +343,8 @@ class _WorkoutPageState extends State<WorkoutPage> {
                       ),
                       Expanded(
                         child: session.exercises.isEmpty
-                            ? Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(32),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(LucideIcons.dumbbell,
-                                          size: 48,
-                                          color: AppColors.secondaryText),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        'Empty workout\nAdd exercises to get started',
-                                        textAlign: TextAlign.center,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              )
-                            : ListView.builder(
-                                padding: const EdgeInsets.all(16),
-                                itemCount: session.exercises.length,
-                                itemBuilder: (context, index) {
-                                  final exercise = session.exercises[index];
-                                  final exerciseId =
-                                      (exercise['id'] as num).toInt();
-                                  return ExerciseSessionCard(
-                                    exercise: exercise,
-                                    sets: session.exerciseSets[exerciseId] ??
-                                        const [],
-                                    previousData:
-                                        session.previousPerformance[exerciseId],
-                                    prs:
-                                        session.getExercisePrs(exerciseId),
-                                    onLogSet: (setNumber, weight, reps) {
-                                      _handleLogSet(session, exerciseId,
-                                          setNumber, weight, reps);
-                                    },
-                                    onAddSet: () {
-                                      session.addSet(exerciseId);
-                                    },
-                                    onSwap: session.workoutId == null
-                                        ? null
-                                        : () => _handleSwap(
-                                            session,
-                                            exerciseId,
-                                            exercise['name'] as String? ??
-                                                ''),
-                                  );
-                                },
-                              ),
+                            ? _buildEmptyState(session)
+                            : _buildExerciseList(session),
                       ),
                       _buildFinishButton(session),
                     ],
@@ -349,7 +364,95 @@ class _WorkoutPageState extends State<WorkoutPage> {
     );
   }
 
+  Widget _buildEmptyState(WorkoutSessionProvider session) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(LucideIcons.plusCircle,
+                size: 56, color: AppColors.strength.withValues(alpha: 0.8)),
+            const SizedBox(height: 16),
+            Text(
+              'Add your first exercise',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Build your workout on the fly',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () => _handleAddExercise(session),
+              icon: const Icon(LucideIcons.plus, size: 18),
+              label: const Text('Add Exercise'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.strength,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExerciseList(WorkoutSessionProvider session) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: session.exercises.length + 1,
+      itemBuilder: (context, index) {
+        if (index == session.exercises.length) {
+          return Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 16),
+            child: OutlinedButton.icon(
+              onPressed: () => _handleAddExercise(session),
+              icon: const Icon(LucideIcons.plus, size: 18),
+              label: const Text('Add Exercise'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.strength,
+                side: const BorderSide(color: AppColors.strength),
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          );
+        }
+        final exercise = session.exercises[index];
+        final exerciseId = (exercise['id'] as num).toInt();
+        return ExerciseSessionCard(
+          exercise: exercise,
+          sets: session.exerciseSets[exerciseId] ?? const [],
+          previousData: session.previousPerformance[exerciseId],
+          prs: session.getExercisePrs(exerciseId),
+          onLogSet: (setNumber, weight, reps) {
+            _handleLogSet(session, exerciseId, setNumber, weight, reps);
+          },
+          onAddSet: () {
+            session.addSet(exerciseId);
+          },
+          onSwap: session.workoutId == null
+              ? null
+              : () => _handleSwap(session, exerciseId,
+                  exercise['name'] as String? ?? ''),
+        );
+      },
+    );
+  }
+
   Widget _buildFinishButton(WorkoutSessionProvider session) {
+    final hasExercises = session.exercises.isNotEmpty;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       decoration: BoxDecoration(
@@ -361,7 +464,9 @@ class _WorkoutPageState extends State<WorkoutPage> {
       child: SizedBox(
         width: double.infinity,
         child: ElevatedButton(
-          onPressed: session.isLoading ? null : () => _handleFinish(session),
+          onPressed: (session.isLoading || !hasExercises)
+              ? null
+              : () => _handleFinish(session),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.success,
             foregroundColor: Colors.white,
