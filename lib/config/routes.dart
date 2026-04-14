@@ -9,6 +9,7 @@ import '../pages/strength/strength_page.dart';
 import '../pages/yoga/yoga_page.dart';
 import '../pages/breathwork/breathwork_page.dart';
 import '../pages/profile/profile_page.dart';
+import '../pages/workout_page.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -43,6 +44,17 @@ GoRouter createRouter(AuthProvider authProvider) {
       GoRoute(
         path: '/register',
         builder: (context, state) => const RegisterPage(),
+      ),
+      GoRoute(
+        path: '/workout',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return WorkoutPage(
+            workoutId: extra?['workoutId'] as int?,
+            initialExercises:
+                extra?['exercises'] as List<Map<String, dynamic>>?,
+          );
+        },
       ),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,

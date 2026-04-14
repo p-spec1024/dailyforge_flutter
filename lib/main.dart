@@ -6,6 +6,7 @@ import 'config/routes.dart';
 import 'providers/auth_provider.dart';
 import 'providers/dashboard_provider.dart';
 import 'providers/strength_provider.dart';
+import 'providers/workout_session_provider.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
 import 'services/storage_service.dart';
@@ -26,6 +27,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
   late final AuthProvider _authProvider;
   late final DashboardProvider _dashboardProvider;
   late final StrengthProvider _strengthProvider;
+  late final WorkoutSessionProvider _workoutSessionProvider;
   late final GoRouter _router;
 
   @override
@@ -40,7 +42,8 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
     
     _dashboardProvider = DashboardProvider(api);
     _strengthProvider = StrengthProvider(api);
-    
+    _workoutSessionProvider = WorkoutSessionProvider(api);
+
     _router = createRouter(_authProvider);
   }
 
@@ -50,6 +53,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
     _authProvider.dispose();
     _dashboardProvider.dispose();
     _strengthProvider.dispose();
+    _workoutSessionProvider.dispose();
     super.dispose();
   }
 
@@ -60,6 +64,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
         ChangeNotifierProvider<AuthProvider>.value(value: _authProvider),
         ChangeNotifierProvider<DashboardProvider>.value(value: _dashboardProvider),
         ChangeNotifierProvider<StrengthProvider>.value(value: _strengthProvider),
+        ChangeNotifierProvider<WorkoutSessionProvider>.value(value: _workoutSessionProvider),
       ],
       child: MaterialApp.router(
         title: 'DailyForge',

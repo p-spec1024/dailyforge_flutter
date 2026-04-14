@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import 'storage_service.dart';
+
+const Duration _kRequestTimeout = Duration(seconds: 15);
 
 class ApiException implements Exception {
   final int statusCode;
@@ -19,8 +23,13 @@ class UnauthorizedException extends ApiException {
 }
 
 class NetworkException extends ApiException {
-  NetworkException()
-      : super(0, 'Network error. Check your connection and try again.');
+  NetworkException([String? message])
+      : super(0, message ?? 'Network error. Check your connection and try again.');
+}
+
+class TimeoutApiException extends ApiException {
+  TimeoutApiException()
+      : super(0, 'Request timed out. Is the API server reachable?');
 }
 
 class ApiService {
@@ -44,60 +53,58 @@ class ApiService {
     return headers;
   }
 
-  Future<Map<String, dynamic>> get(String path) async {
-    try {
-      final response = await http.get(
-        Uri.parse(ApiConfig.url(path)),
-        headers: await _getHeaders(),
-      );
-      return await _handleResponse(response);
-    } on SocketException {
-      throw NetworkException();
-    }
-  }
+  Future<Map<String, dynamic>> get(String path) =>
+      _send('GET', path, () async => http.get(
+            Uri.parse(ApiConfig.url(path)),
+            headers: await _getHeaders(),
+          ));
 
   Future<Map<String, dynamic>> post(
     String path,
     Map<String, dynamic> body, {
     bool withAuth = true,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse(ApiConfig.url(path)),
-        headers: await _getHeaders(withAuth: withAuth),
-        body: jsonEncode(body),
-      );
-      return await _handleResponse(response);
-    } on SocketException {
-      throw NetworkException();
-    }
-  }
+  }) =>
+      _send('POST', path, () async => http.post(
+            Uri.parse(ApiConfig.url(path)),
+            headers: await _getHeaders(withAuth: withAuth),
+            body: jsonEncode(body),
+          ));
 
-  Future<Map<String, dynamic>> put(
+  Future<Map<String, dynamic>> put(String path, Map<String, dynamic> body) =>
+      _send('PUT', path, () async => http.put(
+            Uri.parse(ApiConfig.url(path)),
+            headers: await _getHeaders(),
+            body: jsonEncode(body),
+          ));
+
+  Future<Map<String, dynamic>> delete(String path) =>
+      _send('DELETE', path, () async => http.delete(
+            Uri.parse(ApiConfig.url(path)),
+            headers: await _getHeaders(),
+          ));
+
+  Future<Map<String, dynamic>> _send(
+    String method,
     String path,
-    Map<String, dynamic> body,
+    Future<http.Response> Function() request,
   ) async {
+    final url = ApiConfig.url(path);
+    if (kDebugMode) debugPrint('[API] $method $url');
     try {
-      final response = await http.put(
-        Uri.parse(ApiConfig.url(path)),
-        headers: await _getHeaders(),
-        body: jsonEncode(body),
-      );
+      final response = await request().timeout(_kRequestTimeout);
+      if (kDebugMode) {
+        debugPrint('[API] $method $url → ${response.statusCode}');
+      }
       return await _handleResponse(response);
-    } on SocketException {
+    } on TimeoutException {
+      if (kDebugMode) debugPrint('[API] $method $url → TIMEOUT');
+      throw TimeoutApiException();
+    } on SocketException catch (e) {
+      if (kDebugMode) debugPrint('[API] $method $url → SOCKET ${e.message}');
       throw NetworkException();
-    }
-  }
-
-  Future<Map<String, dynamic>> delete(String path) async {
-    try {
-      final response = await http.delete(
-        Uri.parse(ApiConfig.url(path)),
-        headers: await _getHeaders(),
-      );
-      return await _handleResponse(response);
-    } on SocketException {
-      throw NetworkException();
+    } on HttpException catch (e) {
+      if (kDebugMode) debugPrint('[API] $method $url → HTTP ${e.message}');
+      throw NetworkException(e.message);
     }
   }
 

@@ -5,7 +5,10 @@
       "Bash(flutter pub:*)",
       "Read(//c/Users/prash/AppData/Local/Pub/Cache/hosted/pub.dev/lucide_icons-0.257.0/lib/src/**)",
       "Read(//c/Users/prash/AppData/Local/Pub/Cache/hosted/pub.dev/lucide_icons-0.257.0/lib/**)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(flutter run:*)",
+      "Bash(flutter devices:*)",
+      "Bash(gh pr:*)"
     ]
   }
 }

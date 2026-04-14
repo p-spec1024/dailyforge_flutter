@@ -1,7 +1,22 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 class ApiConfig {
-  // Android emulator: 10.0.2.2 maps to host machine's localhost
-  // Physical device: use your machine's local IP (e.g., 192.168.1.x)
-  static const String baseUrl = 'http://10.0.2.2:3001/api';
+  // Override with: flutter run --dart-define=API_HOST=192.168.1.42
+  static const String _overrideHost =
+      String.fromEnvironment('API_HOST', defaultValue: '');
+  static const int _port = 3001;
+
+  // Android emulator: 10.0.2.2 maps to host's localhost.
+  // Everywhere else (web/Windows/iOS sim/physical device on same network): localhost.
+  // For a real device, pass your machine's LAN IP via --dart-define=API_HOST=...
+  static String get baseUrl {
+    if (_overrideHost.isNotEmpty) {
+      return 'http://$_overrideHost:$_port/api';
+    }
+    final host = '192.168.0.204';  // Your PC IP for physical device testing
+    return 'http://$host:$_port/api';
+  }
 
   // Auth
   static const String login = '/auth/login';
@@ -47,8 +62,14 @@ class ApiConfig {
   // Body Metrics
   static const String bodyMetrics = '/body-metrics';
 
-  // Sessions (5-phase)
+  // Sessions
   static const String sessions = '/sessions';
+  static const String sessionStart = '/session/start';
+  static const String sessionActive = '/session/active';
+  static const String sessionPreviousPerformance = '/session/previous-performance';
+  static String sessionLogSet(int id) => '/session/$id/log-set';
+  static String sessionComplete(int id) => '/session/$id/complete';
+  static String sessionDelete(int id) => '/session/$id';
 
   // Helper to build full URL
   static String url(String endpoint) => '$baseUrl$endpoint';

@@ -1,9 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../providers/dashboard_provider.dart';
 import '../../widgets/glass_card.dart';
+
+/// Extract workout ID and exercises from the main phase only.
+/// Warmup/cooldown phases contain yoga poses and are excluded.
+({int? workoutId, List<Map<String, dynamic>> exercises}) _extractWorkoutData(
+    Map<String, dynamic> workout) {
+  final phases = workout['phases'] as List<dynamic>? ?? [];
+  final exercises = <Map<String, dynamic>>[];
+  int? workoutId;
+  for (final phase in phases) {
+    workoutId ??= phase['workout_id'] as int?;
+    final phaseKey = phase['phase'] as String? ?? '';
+    if (phaseKey != 'main') continue;
+    final phaseExercises = phase['exercises'] as List<dynamic>? ?? [];
+    for (final ex in phaseExercises) {
+      if (ex is Map<String, dynamic>) exercises.add(ex);
+    }
+  }
+  return (workoutId: workoutId, exercises: exercises);
+}
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -13,15 +33,50 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  String? _lastShownError;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<DashboardProvider>();
+      provider.addListener(_maybeShowErrorSnack);
       if (provider.dashboardData == null) {
         provider.refresh();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    // Safe: provider outlives this widget.
+    context.read<DashboardProvider>().removeListener(_maybeShowErrorSnack);
+    super.dispose();
+  }
+
+  void _maybeShowErrorSnack() {
+    if (!mounted) return;
+    final provider = context.read<DashboardProvider>();
+    final err = provider.error;
+    if (err == null) {
+      _lastShownError = null;
+      return;
+    }
+    if (err == _lastShownError) return;
+    _lastShownError = err;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(err),
+          backgroundColor: AppColors.surface,
+          action: SnackBarAction(
+            label: 'Retry',
+            textColor: AppColors.gold,
+            onPressed: () => provider.refresh(),
+          ),
+        ),
+      );
   }
 
   @override
@@ -48,7 +103,7 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 20),
                 _TodaySessionCard(provider: provider),
                 const SizedBox(height: 20),
-                _QuickStartButtons(),
+                _QuickStartButtons(provider: provider),
                 const SizedBox(height: 20),
                 _WeekProgress(provider: provider),
                 const SizedBox(height: 20),
@@ -188,6 +243,22 @@ class _TodaySessionCard extends StatelessWidget {
     'closing_breathwork': _PhaseInfo('En', Color(0xFF3B82F6)),
   };
 
+  void _startWorkout(BuildContext context, Map<String, dynamic> workout) {
+    final (:workoutId, :exercises) = _extractWorkoutData(workout);
+
+    if (workoutId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not determine workout')),
+      );
+      return;
+    }
+
+    context.push('/workout', extra: {
+      'workoutId': workoutId,
+      'exercises': exercises,
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final workout = provider.todayWorkout;
@@ -271,7 +342,7 @@ class _TodaySessionCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: null, // Placeholder for S8-T3
+              onPressed: () => _startWorkout(context, workout),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.strength,
                 disabledBackgroundColor: AppColors.strength.withValues(alpha: 0.6),
@@ -303,27 +374,51 @@ class _PhaseInfo {
 }
 
 class _QuickStartButtons extends StatelessWidget {
+  final DashboardProvider provider;
+  const _QuickStartButtons({required this.provider});
+
+  void _startStrength(BuildContext context) {
+    final workout = provider.todayWorkout;
+    if (workout == null) {
+      context.push('/workout');
+      return;
+    }
+
+    final (:workoutId, :exercises) = _extractWorkoutData(workout);
+
+    if (workoutId == null || exercises.isEmpty) {
+      context.push('/workout');
+      return;
+    }
+
+    context.push('/workout', extra: {
+      'workoutId': workoutId,
+      'exercises': exercises,
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       children: [
         Expanded(
           child: _QuickStartCard(
             label: 'Strength',
             icon: LucideIcons.dumbbell,
             color: AppColors.strength,
+            onTap: () => _startStrength(context),
           ),
         ),
-        SizedBox(width: 10),
-        Expanded(
+        const SizedBox(width: 10),
+        const Expanded(
           child: _QuickStartCard(
             label: 'Yoga',
             icon: LucideIcons.personStanding,
             color: AppColors.yoga,
           ),
         ),
-        SizedBox(width: 10),
-        Expanded(
+        const SizedBox(width: 10),
+        const Expanded(
           child: _QuickStartCard(
             label: 'Breathwork',
             icon: LucideIcons.wind,
@@ -339,18 +434,20 @@ class _QuickStartCard extends StatelessWidget {
   final String label;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap;
 
   const _QuickStartCard({
     required this.label,
     required this.icon,
     required this.color,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return GlassCard(
       borderColor: color,
-      onTap: null, // Placeholder for S8-T3
+      onTap: onTap,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       child: Column(
         children: [
@@ -451,7 +548,7 @@ class _RecentWinsCard extends StatelessWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          pr['exercise_name'] as String? ?? '',
+                          pr['exercise'] as String? ?? '',
                           style: Theme.of(context).textTheme.bodyLarge,
                         ),
                       ),
@@ -473,7 +570,9 @@ class _RecentWinsCard extends StatelessWidget {
                 const Text('🎯', style: TextStyle(fontSize: 16)),
                 const SizedBox(width: 8),
                 Text(
-                  milestone['label'] as String? ?? '',
+                  milestone['count'] != null
+                      ? '${milestone['count']} sessions milestone!'
+                      : 'Milestone reached!',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: AppColors.gold,
                         fontWeight: FontWeight.w600,
@@ -488,11 +587,11 @@ class _RecentWinsCard extends StatelessWidget {
   }
 
   String _formatPRValue(Map<String, dynamic> pr) {
-    final value = pr['value'];
-    final type = pr['type'] as String? ?? '';
-    if (type == 'weight') return '${value}kg';
-    if (type == 'reps') return '$value reps';
-    if (type == 'duration') return '${value}s';
-    return '$value';
+    final weight = pr['weight'];
+    final reps = pr['reps'];
+    if (weight != null && reps != null) return '${weight}kg × $reps';
+    if (weight != null) return '${weight}kg';
+    if (reps != null) return '$reps reps';
+    return '';
   }
 }

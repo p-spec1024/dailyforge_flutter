@@ -23,38 +23,12 @@ class DashboardProvider extends ChangeNotifier {
     final hour = DateTime.now().hour;
     final period =
         hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening');
-    final name = _dashboardData?['user']?['name'] as String? ?? '';
+    final name = _dashboardData?['user']?['firstName'] as String? ?? '';
     return name.isNotEmpty ? 'Good $period, $name' : 'Good $period';
   }
 
   int get currentStreak {
-    final weekActivity = _dashboardData?['weekActivity'] as List<dynamic>?;
-    if (weekActivity == null || weekActivity.isEmpty) return 0;
-
-    // Count consecutive days ending at today (or most recent activity day)
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    final activityDates = weekActivity
-        .map((e) => DateTime.tryParse(e['date'] as String? ?? ''))
-        .whereType<DateTime>()
-        .map((d) => DateTime(d.year, d.month, d.day))
-        .toSet();
-
-    int streak = 0;
-    // Count backwards from today (capped at 7 — API only returns this week)
-    for (int i = 0; i <= 7; i++) {
-      final day = today.subtract(Duration(days: i));
-      if (activityDates.contains(day)) {
-        streak++;
-      } else if (i == 0) {
-        // Today might not have activity yet — skip and continue
-        continue;
-      } else {
-        break;
-      }
-    }
-    return streak;
+    return (_dashboardData?['user']?['streak'] as int?) ?? 0;
   }
 
   List<Map<String, dynamic>> get recentPRs {
@@ -65,29 +39,18 @@ class DashboardProvider extends ChangeNotifier {
 
   /// 7 bools for Mon–Sun, true if any activity that day.
   List<bool> get weekDots {
-    final weekActivity = _dashboardData?['weekActivity'] as List<dynamic>?;
-    if (weekActivity == null) return List.filled(7, false);
-
-    final activityDates = <String>{};
-    for (final entry in weekActivity) {
-      final date = entry['date'] as String?;
-      if (date != null) activityDates.add(date);
-    }
-
-    // Build Mon–Sun for the current week
-    final now = DateTime.now();
-    // DateTime.monday == 1
-    final monday = now.subtract(Duration(days: now.weekday - 1));
-
-    return List.generate(7, (i) {
-      final day = monday.add(Duration(days: i));
-      final key =
-          '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
-      return activityDates.contains(key);
-    });
+    final thisWeek = _dashboardData?['thisWeek'] as Map<String, dynamic>?;
+    if (thisWeek == null) return List.filled(7, false);
+    final days = thisWeek['days'] as List<dynamic>?;
+    if (days == null || days.length < 7) return List.filled(7, false);
+    return days.map<bool>((d) => d == true).toList();
   }
 
-  Map<String, dynamic>? get milestone => _dashboardData?['milestone'] as Map<String, dynamic>?;
+  Map<String, dynamic>? get milestone {
+    final m = _dashboardData?['milestone'] as Map<String, dynamic>?;
+    if (m == null || m['reached'] != true) return null;
+    return m;
+  }
 
   // --- Data fetching ---
 
@@ -105,12 +68,20 @@ class DashboardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      if (kDebugMode) debugPrint('[Dashboard] refresh: fetching…');
       await Future.wait([fetchDashboard(), fetchTodayWorkout()]);
       _error = null;
+      if (kDebugMode) debugPrint('[Dashboard] refresh: ok');
     } on ApiException catch (e) {
       _dashboardData = null;
       _todayWorkout = null;
       _error = e.message;
+      if (kDebugMode) debugPrint('[Dashboard] refresh: ApiException → ${e.message}');
+    } catch (e, st) {
+      _dashboardData = null;
+      _todayWorkout = null;
+      _error = 'Unexpected error: $e';
+      if (kDebugMode) debugPrint('[Dashboard] refresh: $e\n$st');
     } finally {
       _isLoading = false;
       notifyListeners();
