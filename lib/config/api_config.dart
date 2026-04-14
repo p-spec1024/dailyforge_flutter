@@ -62,6 +62,9 @@ class ApiConfig {
   // Body Metrics
   static const String bodyMetrics = '/body-metrics';
 
+  // Settings
+  static const String settings = '/settings';
+
   // Sessions
   static const String sessions = '/sessions';
   static const String sessionStart = '/session/start';

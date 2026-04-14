@@ -3,9 +3,12 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../config/theme.dart';
+import '../providers/settings_provider.dart';
 import '../providers/workout_session_provider.dart';
 import '../widgets/workout/exercise_session_card.dart';
+import '../widgets/workout/rest_timer.dart';
 import '../widgets/workout/session_header.dart';
+import '../widgets/workout/settings_modal.dart';
 
 class WorkoutPage extends StatefulWidget {
   final int? workoutId;
@@ -29,6 +32,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initSession();
+      context.read<SettingsProvider>().fetchSettings();
     });
   }
 
@@ -37,10 +41,19 @@ class _WorkoutPageState extends State<WorkoutPage> {
     if (provider.isActive) return; // Already in a session
 
     if (widget.workoutId != null && widget.initialExercises != null) {
-      await provider.startSession(
-          widget.workoutId!, widget.initialExercises!);
+      await provider.startSession(widget.workoutId!, widget.initialExercises!);
     } else {
       await provider.startEmptySession();
+    }
+  }
+
+  Future<void> _handleLogSet(WorkoutSessionProvider session, int exerciseId,
+      int setNumber, double weight, int reps) async {
+    final response = await session.logSet(exerciseId, setNumber, weight, reps);
+    if (response == null || !mounted) return;
+    final settings = context.read<SettingsProvider>().settings;
+    if (settings.restTimerEnabled && settings.restTimerAutoStart) {
+      session.startRestTimer(settings.restTimerDuration);
     }
   }
 
@@ -205,62 +218,75 @@ class _WorkoutPageState extends State<WorkoutPage> {
           child: Scaffold(
             backgroundColor: AppColors.background,
             body: SafeArea(
-              child: Column(
+              child: Stack(
                 children: [
-                  SessionHeader(
-                    elapsedNotifier: session.elapsedNotifier,
-                    totalVolume: session.totalVolume,
-                    totalSets: session.totalSets,
-                    onFinish: () => _handleFinish(session),
-                    onDiscard: () => _handleDiscard(session),
-                    formatTime: session.formatTime,
-                  ),
-                  Expanded(
-                    child: session.exercises.isEmpty
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(32),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(LucideIcons.dumbbell,
-                                      size: 48,
-                                      color: AppColors.secondaryText),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'Empty workout\nAdd exercises to get started',
-                                    textAlign: TextAlign.center,
-                                    style:
-                                        Theme.of(context).textTheme.bodyMedium,
+                  Column(
+                    children: [
+                      SessionHeader(
+                        elapsedNotifier: session.elapsedNotifier,
+                        totalVolume: session.totalVolume,
+                        totalSets: session.totalSets,
+                        onFinish: () => _handleFinish(session),
+                        onDiscard: () => _handleDiscard(session),
+                        onSettings: () => SettingsBottomSheet.show(context),
+                        formatTime: session.formatTime,
+                      ),
+                      Expanded(
+                        child: session.exercises.isEmpty
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(32),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(LucideIcons.dumbbell,
+                                          size: 48,
+                                          color: AppColors.secondaryText),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'Empty workout\nAdd exercises to get started',
+                                        textAlign: TextAlign.center,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium,
+                                      ),
+                                    ],
                                   ),
-                                ],
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: session.exercises.length,
+                                itemBuilder: (context, index) {
+                                  final exercise = session.exercises[index];
+                                  final exerciseId =
+                                      (exercise['id'] as num).toInt();
+                                  return ExerciseSessionCard(
+                                    exercise: exercise,
+                                    sets: session.exerciseSets[exerciseId] ??
+                                        const [],
+                                    previousData:
+                                        session.previousPerformance[exerciseId],
+                                    onLogSet: (setNumber, weight, reps) {
+                                      _handleLogSet(session, exerciseId,
+                                          setNumber, weight, reps);
+                                    },
+                                    onAddSet: () {
+                                      session.addSet(exerciseId);
+                                    },
+                                  );
+                                },
                               ),
-                            ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: session.exercises.length,
-                            itemBuilder: (context, index) {
-                              final exercise = session.exercises[index];
-                              final exerciseId = (exercise['id'] as num).toInt();
-                              return ExerciseSessionCard(
-                                exercise: exercise,
-                                sets:
-                                    session.exerciseSets[exerciseId] ?? const [],
-                                previousData:
-                                    session.previousPerformance[exerciseId],
-                                onLogSet: (setNumber, weight, reps) {
-                                  session.logSet(
-                                      exerciseId, setNumber, weight, reps);
-                                },
-                                onAddSet: () {
-                                  session.addSet(exerciseId);
-                                },
-                              );
-                            },
-                          ),
+                      ),
+                      _buildFinishButton(session),
+                    ],
                   ),
-                  _buildFinishButton(session),
+                  if (session.isRestTimerActive)
+                    RestTimer(
+                      duration: session.restTimerDuration,
+                      onSkip: session.skipRestTimer,
+                      onFinish: session.onRestTimerComplete,
+                    ),
                 ],
               ),
             ),

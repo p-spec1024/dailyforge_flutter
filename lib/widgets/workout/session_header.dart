@@ -9,6 +9,7 @@ class SessionHeader extends StatelessWidget {
   final int totalSets;
   final VoidCallback onFinish;
   final VoidCallback onDiscard;
+  final VoidCallback onSettings;
   final String Function(int) formatTime;
 
   const SessionHeader({
@@ -18,6 +19,7 @@ class SessionHeader extends StatelessWidget {
     required this.totalSets,
     required this.onFinish,
     required this.onDiscard,
+    required this.onSettings,
     required this.formatTime,
   });
 
@@ -67,6 +69,21 @@ class SessionHeader extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
+                ),
+              ),
+              // Settings
+              IconButton(
+                onPressed: onSettings,
+                icon: const Icon(
+                  LucideIcons.settings,
+                  color: AppColors.secondaryText,
+                  size: 20,
+                ),
+                tooltip: 'Rest timer settings',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 36,
+                  minHeight: 36,
                 ),
               ),
               // More menu (discard)

@@ -84,6 +84,10 @@ class WorkoutSessionProvider extends ChangeNotifier {
 
   Timer? _timer;
 
+  // --- Rest timer state ---
+  bool _isRestTimerActive = false;
+  int _restTimerDuration = 90;
+
   /// Separate notifier for the elapsed timer so the full widget tree
   /// doesn't rebuild every second.
   final ValueNotifier<int> elapsedNotifier = ValueNotifier<int>(0);
@@ -118,6 +122,31 @@ class WorkoutSessionProvider extends ChangeNotifier {
           sets
               .where((s) => s.completed)
               .fold(0.0, (s, set) => s + (set.weight * set.reps)));
+
+  // --- Rest timer getters ---
+  bool get isRestTimerActive => _isRestTimerActive;
+  int get restTimerDuration => _restTimerDuration;
+
+  /// Start the rest timer overlay with the given duration.
+  void startRestTimer(int duration) {
+    _restTimerDuration = duration;
+    _isRestTimerActive = true;
+    notifyListeners();
+  }
+
+  /// Skip / dismiss the rest timer overlay.
+  void skipRestTimer() {
+    if (!_isRestTimerActive) return;
+    _isRestTimerActive = false;
+    notifyListeners();
+  }
+
+  /// Called when the rest timer finishes its natural countdown + dismiss delay.
+  void onRestTimerComplete() {
+    if (!_isRestTimerActive) return;
+    _isRestTimerActive = false;
+    notifyListeners();
+  }
 
   /// Clear the error after it has been displayed (e.g. in a SnackBar).
   void clearError() {
@@ -431,6 +460,7 @@ class WorkoutSessionProvider extends ChangeNotifier {
     _exercises = <Map<String, dynamic>>[];
     _exerciseSets = <int, List<SetData>>{};
     _previousPerformance = <int, PreviousData>{};
+    _isRestTimerActive = false;
   }
 
   @override

@@ -5,6 +5,7 @@ import 'config/theme.dart';
 import 'config/routes.dart';
 import 'providers/auth_provider.dart';
 import 'providers/dashboard_provider.dart';
+import 'providers/settings_provider.dart';
 import 'providers/strength_provider.dart';
 import 'providers/workout_session_provider.dart';
 import 'services/api_service.dart';
@@ -28,6 +29,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
   late final DashboardProvider _dashboardProvider;
   late final StrengthProvider _strengthProvider;
   late final WorkoutSessionProvider _workoutSessionProvider;
+  late final SettingsProvider _settingsProvider;
   late final GoRouter _router;
 
   @override
@@ -43,17 +45,32 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
     _dashboardProvider = DashboardProvider(api);
     _strengthProvider = StrengthProvider(api);
     _workoutSessionProvider = WorkoutSessionProvider(api);
+    _settingsProvider = SettingsProvider(api);
+
+    // Reset user-scoped caches when auth is invalidated.
+    _authProvider.addListener(_handleAuthChanged);
 
     _router = createRouter(_authProvider);
   }
 
+  bool _wasAuthenticated = false;
+  void _handleAuthChanged() {
+    final isAuth = _authProvider.isAuthenticated;
+    if (_wasAuthenticated && !isAuth) {
+      _settingsProvider.reset();
+    }
+    _wasAuthenticated = isAuth;
+  }
+
   @override
   void dispose() {
+    _authProvider.removeListener(_handleAuthChanged);
     _router.dispose();
     _authProvider.dispose();
     _dashboardProvider.dispose();
     _strengthProvider.dispose();
     _workoutSessionProvider.dispose();
+    _settingsProvider.dispose();
     super.dispose();
   }
 
@@ -65,6 +82,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
         ChangeNotifierProvider<DashboardProvider>.value(value: _dashboardProvider),
         ChangeNotifierProvider<StrengthProvider>.value(value: _strengthProvider),
         ChangeNotifierProvider<WorkoutSessionProvider>.value(value: _workoutSessionProvider),
+        ChangeNotifierProvider<SettingsProvider>.value(value: _settingsProvider),
       ],
       child: MaterialApp.router(
         title: 'DailyForge',
