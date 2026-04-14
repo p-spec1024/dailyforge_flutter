@@ -211,10 +211,15 @@ class _WorkoutPageState extends State<WorkoutPage> {
     );
   }
 
+  int _asId(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
   void _handleAddExercise(WorkoutSessionProvider session) {
-    final existing = session.exercises
-        .map((e) => (e['id'] as num).toInt())
-        .toSet();
+    final existing = session.exercises.map((e) => _asId(e['id'])).toSet();
     AddExerciseSheet.show(
       context,
       existingIds: existing,

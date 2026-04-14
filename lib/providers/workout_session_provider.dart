@@ -323,11 +323,6 @@ class WorkoutSessionProvider extends ChangeNotifier {
     }
   }
 
-  /// Whether an exercise is already in the current session.
-  bool hasExercise(int exerciseId) {
-    return _exercises.any((e) => _parseId(e['id']) == exerciseId);
-  }
-
   /// Add an exercise to the active session (mid-workout).
   /// Dedupes by id, initializes default sets, and fetches previous performance.
   Future<void> addExercise(Map<String, dynamic> exercise) async {
@@ -398,6 +393,7 @@ class WorkoutSessionProvider extends ChangeNotifier {
     try {
       final session = sessionData['session'] as Map<String, dynamic>;
       if (session['completed'] == true) {
+        _error = 'This session is already completed.';
         _isLoading = false;
         notifyListeners();
         return;

@@ -59,11 +59,16 @@ GoRouter createRouter(AuthProvider authProvider) {
       GoRoute(
         path: '/workout/empty',
         builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?;
           final routineId = int.tryParse(
               state.uri.queryParameters['routineId'] ?? '');
+          return WorkoutPage(routineId: routineId);
+        },
+      ),
+      GoRoute(
+        path: '/workout/resume',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
           return WorkoutPage(
-            routineId: routineId,
             resumeData: extra?['resumeData'] as Map<String, dynamic>?,
           );
         },

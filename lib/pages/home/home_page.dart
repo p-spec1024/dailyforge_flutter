@@ -37,7 +37,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String? _lastShownError;
   Map<String, dynamic>? _activeSession;
-  bool _checkingActive = false;
+  int _activeSessionRequestId = 0;
   bool _wasSessionActive = false;
 
   @override
@@ -75,28 +75,23 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _refreshActiveSession() async {
-    if (_checkingActive) return;
-    _checkingActive = true;
-    try {
-      final session = context.read<WorkoutSessionProvider>();
-      // Don't show the banner while the user is actively in a session in-app.
-      if (session.isActive) {
-        if (!mounted) return;
-        setState(() => _activeSession = null);
-        return;
-      }
-      final data = await session.checkActiveSession();
-      if (!mounted) return;
-      setState(() => _activeSession = data);
-    } finally {
-      _checkingActive = false;
+    final myId = ++_activeSessionRequestId;
+    final session = context.read<WorkoutSessionProvider>();
+    // Don't show the banner while the user is actively in a session in-app.
+    if (session.isActive) {
+      if (!mounted || myId != _activeSessionRequestId) return;
+      setState(() => _activeSession = null);
+      return;
     }
+    final data = await session.checkActiveSession();
+    if (!mounted || myId != _activeSessionRequestId) return; // stale
+    setState(() => _activeSession = data);
   }
 
   void _handleResume() {
     final data = _activeSession;
     if (data == null) return;
-    context.push('/workout/empty', extra: {'resumeData': data});
+    context.push('/workout/resume', extra: {'resumeData': data});
     setState(() => _activeSession = null);
   }
 

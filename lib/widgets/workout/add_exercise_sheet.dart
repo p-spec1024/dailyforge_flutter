@@ -72,6 +72,7 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
       _searchFocus.requestFocus();
     });
     _scrollController.addListener(_onScroll);
+    _searchController.addListener(_onSearchControllerChanged);
     _fetchMuscleGroups();
     _fetch(reset: true);
   }
@@ -79,11 +80,19 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _searchController.removeListener(_onSearchControllerChanged);
     _searchController.dispose();
     _searchFocus.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Drives the clear (X) suffix icon visibility on every keystroke — the
+  /// TextField builds it from `_searchController.text.isNotEmpty` and needs
+  /// a rebuild when that flips.
+  void _onSearchControllerChanged() {
+    if (mounted) setState(() {});
   }
 
   void _onScroll() {

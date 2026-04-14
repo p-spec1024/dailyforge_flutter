@@ -93,6 +93,8 @@ class _SaveRoutineSheetState extends State<SaveRoutineSheet> {
     };
 
     // Capture messenger + navigator before any await so they survive pop.
+    // messenger belongs to the parent Scaffold and stays valid after the
+    // sheet is popped, so post-pop showSnackBar is safe.
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
@@ -112,6 +114,12 @@ class _SaveRoutineSheetState extends State<SaveRoutineSheet> {
       if (!mounted) return;
       setState(() {
         _error = e.message;
+        _isSaving = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Could not save routine. Please try again.';
         _isSaving = false;
       });
     }
