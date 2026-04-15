@@ -59,6 +59,40 @@ class ApiService {
             headers: await _getHeaders(),
           ));
 
+  Future<List<dynamic>> getList(String path) async {
+    final url = ApiConfig.url(path);
+    if (kDebugMode) debugPrint('[API] GET $url');
+    try {
+      final response = await http
+          .get(Uri.parse(url), headers: await _getHeaders())
+          .timeout(_kRequestTimeout);
+      if (kDebugMode) debugPrint('[API] GET $url → ${response.statusCode}');
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return response.body.isNotEmpty
+            ? jsonDecode(response.body) as List<dynamic>
+            : <dynamic>[];
+      }
+      if (response.statusCode == 401) {
+        await _storage.deleteToken();
+        await _storage.deleteUser();
+        onUnauthorized?.call();
+        throw UnauthorizedException();
+      }
+      String? message;
+      try {
+        final body = jsonDecode(response.body);
+        if (body is Map<String, dynamic>) message = body['error'] as String?;
+      } catch (_) {}
+      throw ApiException(response.statusCode, message ?? 'Something went wrong');
+    } on TimeoutException {
+      throw TimeoutApiException();
+    } on SocketException {
+      throw NetworkException();
+    } on HttpException catch (e) {
+      throw NetworkException(e.message);
+    }
+  }
+
   Future<Map<String, dynamic>> post(
     String path,
     Map<String, dynamic> body, {

@@ -29,6 +29,24 @@ class AppColors {
   static const Color error = Color(0xFFEF4444);
   static const Color warning = Color(0xFFEAB308);
 
+  // Safety levels (breathwork)
+  static const Color safetyGreen = Color(0xFF10B981);
+  static const Color safetyYellow = Color(0xFFF59E0B);
+  static const Color safetyRed = Color(0xFFEF4444);
+
+  static Color safetyColor(String level) {
+    switch (level.toLowerCase()) {
+      case 'green':
+        return safetyGreen;
+      case 'yellow':
+        return safetyYellow;
+      case 'red':
+        return safetyRed;
+      default:
+        return secondaryText;
+    }
+  }
+
   static Color difficultyColor(String difficulty) {
     switch (difficulty.toLowerCase()) {
       case 'beginner':

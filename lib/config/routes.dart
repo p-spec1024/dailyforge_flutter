@@ -8,6 +8,7 @@ import '../pages/home/home_page.dart';
 import '../pages/strength/strength_page.dart';
 import '../pages/yoga/yoga_page.dart';
 import '../pages/breathwork/breathwork_page.dart';
+import '../pages/breathwork/breathwork_timer_page.dart';
 import '../pages/profile/profile_page.dart';
 import '../pages/workout_page.dart';
 
@@ -62,6 +63,13 @@ GoRouter createRouter(AuthProvider authProvider) {
           final routineId = int.tryParse(
               state.uri.queryParameters['routineId'] ?? '');
           return WorkoutPage(routineId: routineId);
+        },
+      ),
+      GoRoute(
+        path: '/breathwork/:id',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return BreathworkTimerPage(techniqueId: id);
         },
       ),
       GoRoute(
