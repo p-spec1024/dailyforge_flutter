@@ -10,7 +10,13 @@
       "Bash(flutter devices:*)",
       "Bash(gh pr:*)",
       "Bash(dart format:*)",
-      "Bash(find . -name \"*.dart\" -not -path \"./build/*\" -not -path \"./.dart_tool/*\" -exec grep -l \"PrBadge\\\\|pr_badge\" {} \\\\;)"
+      "Bash(find . -name \"*.dart\" -not -path \"./build/*\" -not -path \"./.dart_tool/*\" -exec grep -l \"PrBadge\\\\|pr_badge\" {} \\\\;)",
+      "Bash(xargs grep *)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" pr list)",
+      "Bash(gh.exe pr *)",
+      "Bash(python3 *)",
+      "Bash(node -e \"import\\('./src/constants/breathwork-durations.js'\\).then\\(m => { const names = ['Box Breathing','4-7-8 Breathing','Physiological Sigh','Kapalabhati','Holotropic Breathwork','Apnea Training','Kumbhaka','Rebirthing Breath','Tummo','Wim Hof Method','Unknown Technique']; for \\(const n of names\\) console.log\\(n.padEnd\\(28\\), m.getEstimatedDurationSeconds\\(n, 'advanced'\\)/60, 'min'\\); }\\);\")",
+      "Bash(node -e ' *)"
     ]
   }
 }
