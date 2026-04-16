@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../providers/yoga_provider.dart';
+import '../../providers/yoga_session_provider.dart';
 import '../../widgets/yoga/practice_type_selector.dart';
 import '../../widgets/yoga/level_selector.dart';
 import '../../widgets/yoga/duration_selector.dart';
@@ -124,13 +126,9 @@ class _YogaPageState extends State<YogaPage> {
                       isGenerating: provider.isGenerating,
                       onRegenerate: _handleStart,
                       onBegin: () {
-                        // T4: navigate to yoga player
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Yoga player coming in T4!'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
+                        final session = provider.generatedSession!;
+                        context.read<YogaSessionProvider>().startSession(session);
+                        context.go('/yoga/session');
                       },
                       onClose: provider.clearSession,
                     ),

@@ -11,6 +11,8 @@ import '../pages/breathwork/breathwork_page.dart';
 import '../pages/breathwork/breathwork_timer_page.dart';
 import '../pages/profile/profile_page.dart';
 import '../pages/workout_page.dart';
+import '../pages/yoga/yoga_session_page.dart';
+import '../pages/yoga/yoga_complete_page.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -71,6 +73,14 @@ GoRouter createRouter(AuthProvider authProvider) {
           final id = int.parse(state.pathParameters['id']!);
           return BreathworkTimerPage(techniqueId: id);
         },
+      ),
+      GoRoute(
+        path: '/yoga/session',
+        builder: (context, state) => const YogaSessionPage(),
+      ),
+      GoRoute(
+        path: '/yoga/complete',
+        builder: (context, state) => const YogaCompletePage(),
       ),
       GoRoute(
         path: '/workout/resume',
