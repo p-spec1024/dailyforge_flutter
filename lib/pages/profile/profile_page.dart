@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:go_router/go_router.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/profile_provider.dart';
@@ -168,12 +169,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       title: 'Exercise History',
                       subtitle: 'Track your progress over time',
                       iconColor: AppColors.breathwork,
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Coming in next update!')),
-                        );
-                      },
+                      onTap: () => context.push('/exercise-history'),
                     ),
                     const SizedBox(height: 12),
 

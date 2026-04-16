@@ -12,6 +12,7 @@ import 'providers/strength_provider.dart';
 import 'providers/workout_session_provider.dart';
 import 'providers/yoga_provider.dart';
 import 'providers/calendar_provider.dart';
+import 'providers/progress_provider.dart';
 import 'providers/yoga_session_provider.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
@@ -41,6 +42,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
   late final YogaProvider _yogaProvider;
   late final YogaSessionProvider _yogaSessionProvider;
   late final CalendarProvider _calendarProvider;
+  late final ProgressProvider _progressProvider;
   late final GoRouter _router;
 
   @override
@@ -63,6 +65,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
     _yogaProvider = YogaProvider(api);
     _yogaSessionProvider = YogaSessionProvider();
     _calendarProvider = CalendarProvider(api);
+    _progressProvider = ProgressProvider(api);
 
     // Reset user-scoped caches when auth is invalidated.
     _authProvider.addListener(_handleAuthChanged);
@@ -76,6 +79,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
     if (_wasAuthenticated && !isAuth) {
       _settingsProvider.reset();
       _profileProvider.clear();
+      _progressProvider.clear();
     }
     _wasAuthenticated = isAuth;
   }
@@ -94,6 +98,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
     _yogaProvider.dispose();
     _yogaSessionProvider.dispose();
     _calendarProvider.dispose();
+    _progressProvider.dispose();
     super.dispose();
   }
 
@@ -115,6 +120,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
         ChangeNotifierProvider<YogaProvider>.value(value: _yogaProvider),
         ChangeNotifierProvider<YogaSessionProvider>.value(value: _yogaSessionProvider),
         ChangeNotifierProvider<CalendarProvider>.value(value: _calendarProvider),
+        ChangeNotifierProvider<ProgressProvider>.value(value: _progressProvider),
       ],
       child: MaterialApp.router(
         title: 'DailyForge',

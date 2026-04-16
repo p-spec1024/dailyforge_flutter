@@ -10,6 +10,8 @@ import '../pages/yoga/yoga_page.dart';
 import '../pages/breathwork/breathwork_page.dart';
 import '../pages/breathwork/breathwork_timer_page.dart';
 import '../pages/profile/profile_page.dart';
+import '../pages/progress/exercise_history_page.dart';
+import '../pages/progress/exercise_progress_page.dart';
 import '../pages/workout_page.dart';
 import '../pages/yoga/yoga_session_page.dart';
 import '../pages/yoga/yoga_complete_page.dart';
@@ -89,6 +91,20 @@ GoRouter createRouter(AuthProvider authProvider) {
           return WorkoutPage(
             resumeData: extra?['resumeData'] as Map<String, dynamic>?,
           );
+        },
+      ),
+      GoRoute(
+        path: '/exercise-history',
+        builder: (context, state) => const ExerciseHistoryPage(),
+      ),
+      GoRoute(
+        path: '/exercise-progress/:id',
+        builder: (context, state) {
+          final id =
+              int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          final type =
+              state.uri.queryParameters['type'] ?? 'strength';
+          return ExerciseProgressPage(exerciseId: id, type: type);
         },
       ),
       ShellRoute(
