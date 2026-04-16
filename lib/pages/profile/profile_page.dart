@@ -5,6 +5,7 @@ import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../widgets/profile/unit_toggle.dart';
+import '../../widgets/calendar/workout_calendar.dart';
 import '../../widgets/profile/profile_menu_card.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -153,24 +154,13 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Progress Section
-                    _buildSectionHeader('Progress'),
+                    // Activity Section
+                    _buildSectionHeader('Activity'),
                     const SizedBox(height: 12),
 
-                    // Calendar - Placeholder for T2
-                    ProfileMenuCard(
-                      icon: LucideIcons.calendar,
-                      title: 'Workout Calendar',
-                      subtitle: 'View your training history',
-                      iconColor: AppColors.gold,
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Coming in next update!')),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 12),
+                    // Workout Calendar
+                    const WorkoutCalendar(),
+                    const SizedBox(height: 20),
 
                     // Exercise History
                     ProfileMenuCard(
