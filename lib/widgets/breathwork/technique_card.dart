@@ -103,7 +103,7 @@ class TechniqueCard extends StatelessWidget {
               if (technique.estimatedDuration != null) ...[
                 const SizedBox(width: 8),
                 Text(
-                  '·  ${technique.estimatedDuration} min',
+                  '·  ${(technique.estimatedDuration! / 60).ceil()} min',
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.secondaryText,

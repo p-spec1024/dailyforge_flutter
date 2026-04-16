@@ -22,4 +22,18 @@ class BreathworkService {
     final raw = await _api.get('${ApiConfig.breathworkTechniques}/$id');
     return BreathworkTechnique.fromJson(raw);
   }
+
+  Future<void> logSession({
+    required int techniqueId,
+    required int durationSeconds,
+    required int roundsCompleted,
+    required bool completed,
+  }) async {
+    await _api.post(ApiConfig.breathworkSessions, {
+      'technique_id': techniqueId,
+      'duration_seconds': durationSeconds,
+      'rounds_completed': roundsCompleted,
+      'completed': completed,
+    });
+  }
 }

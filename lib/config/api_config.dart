@@ -53,6 +53,7 @@ class ApiConfig {
   // Breathwork
   static const String breathworkTechniques = '/breathwork/techniques';
   static const String breathworkLog = '/breathwork/log';
+  static const String breathworkSessions = '/breathwork/sessions';
 
   // Dashboard
   static const String dashboard = '/dashboard';
