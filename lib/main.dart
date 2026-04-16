@@ -6,6 +6,7 @@ import 'config/routes.dart';
 import 'providers/auth_provider.dart';
 import 'providers/breathwork_provider.dart';
 import 'providers/dashboard_provider.dart';
+import 'providers/profile_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/strength_provider.dart';
 import 'providers/workout_session_provider.dart';
@@ -33,6 +34,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
   late final DashboardProvider _dashboardProvider;
   late final StrengthProvider _strengthProvider;
   late final WorkoutSessionProvider _workoutSessionProvider;
+  late final ProfileProvider _profileProvider;
   late final SettingsProvider _settingsProvider;
   late final BreathworkProvider _breathworkProvider;
   late final YogaProvider _yogaProvider;
@@ -53,6 +55,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
     _dashboardProvider = DashboardProvider(api);
     _strengthProvider = StrengthProvider(api);
     _workoutSessionProvider = WorkoutSessionProvider(api);
+    _profileProvider = ProfileProvider(api);
     _settingsProvider = SettingsProvider(api);
     _breathworkProvider = BreathworkProvider(api);
     _yogaProvider = YogaProvider(api);
@@ -69,6 +72,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
     final isAuth = _authProvider.isAuthenticated;
     if (_wasAuthenticated && !isAuth) {
       _settingsProvider.reset();
+      _profileProvider.clear();
     }
     _wasAuthenticated = isAuth;
   }
@@ -81,6 +85,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
     _dashboardProvider.dispose();
     _strengthProvider.dispose();
     _workoutSessionProvider.dispose();
+    _profileProvider.dispose();
     _settingsProvider.dispose();
     _breathworkProvider.dispose();
     _yogaProvider.dispose();
@@ -100,6 +105,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
         ChangeNotifierProvider<DashboardProvider>.value(value: _dashboardProvider),
         ChangeNotifierProvider<StrengthProvider>.value(value: _strengthProvider),
         ChangeNotifierProvider<WorkoutSessionProvider>.value(value: _workoutSessionProvider),
+        ChangeNotifierProvider<ProfileProvider>.value(value: _profileProvider),
         ChangeNotifierProvider<SettingsProvider>.value(value: _settingsProvider),
         ChangeNotifierProvider<BreathworkProvider>.value(value: _breathworkProvider),
         ChangeNotifierProvider<YogaProvider>.value(value: _yogaProvider),
