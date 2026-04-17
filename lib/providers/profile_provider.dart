@@ -15,7 +15,13 @@ class ProfileProvider with ChangeNotifier {
   String? get error => _error;
 
   String get unitSystem => _profile?['unit_system'] ?? 'metric';
-  double? get heightCm => _profile?['height_cm']?.toDouble();
+  double? get heightCm {
+    final v = _profile?['height_cm'];
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v);
+    return null;
+  }
   String get userName => _profile?['name'] ?? '';
   String get userEmail => _profile?['email'] ?? '';
 

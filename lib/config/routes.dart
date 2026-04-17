@@ -15,6 +15,8 @@ import '../pages/progress/exercise_progress_page.dart';
 import '../pages/workout_page.dart';
 import '../pages/yoga/yoga_session_page.dart';
 import '../pages/yoga/yoga_complete_page.dart';
+import '../pages/body_measurements/body_measurements_page.dart';
+import '../pages/body_measurements/full_month_page.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -96,6 +98,17 @@ GoRouter createRouter(AuthProvider authProvider) {
       GoRoute(
         path: '/exercise-history',
         builder: (context, state) => const ExerciseHistoryPage(),
+      ),
+      GoRoute(
+        path: '/body-measurements',
+        builder: (context, state) => const BodyMeasurementsPage(),
+      ),
+      GoRoute(
+        path: '/body-measurements/month',
+        builder: (context, state) {
+          final month = state.extra as DateTime? ?? DateTime.now();
+          return FullMonthPage(month: month);
+        },
       ),
       GoRoute(
         path: '/exercise-progress/:id',

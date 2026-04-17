@@ -173,18 +173,13 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Body Measurements - Placeholder for T4
+                    // Body Measurements
                     ProfileMenuCard(
                       icon: LucideIcons.ruler,
                       title: 'Body Measurements',
                       subtitle: 'Weight, body fat & more',
                       iconColor: AppColors.yoga,
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Coming in next update!')),
-                        );
-                      },
+                      onTap: () => context.push('/body-measurements'),
                     ),
                     const SizedBox(height: 32),
 

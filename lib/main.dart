@@ -14,6 +14,7 @@ import 'providers/yoga_provider.dart';
 import 'providers/calendar_provider.dart';
 import 'providers/progress_provider.dart';
 import 'providers/yoga_session_provider.dart';
+import 'providers/body_measurements_provider.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
 import 'services/storage_service.dart';
@@ -43,6 +44,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
   late final YogaSessionProvider _yogaSessionProvider;
   late final CalendarProvider _calendarProvider;
   late final ProgressProvider _progressProvider;
+  late final BodyMeasurementsProvider _bodyMeasurementsProvider;
   late final GoRouter _router;
 
   @override
@@ -66,6 +68,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
     _yogaSessionProvider = YogaSessionProvider();
     _calendarProvider = CalendarProvider(api);
     _progressProvider = ProgressProvider(api);
+    _bodyMeasurementsProvider = BodyMeasurementsProvider(api);
 
     // Reset user-scoped caches when auth is invalidated.
     _authProvider.addListener(_handleAuthChanged);
@@ -80,6 +83,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
       _settingsProvider.reset();
       _profileProvider.clear();
       _progressProvider.clear();
+      _bodyMeasurementsProvider.clear();
     }
     _wasAuthenticated = isAuth;
   }
@@ -99,6 +103,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
     _yogaSessionProvider.dispose();
     _calendarProvider.dispose();
     _progressProvider.dispose();
+    _bodyMeasurementsProvider.dispose();
     super.dispose();
   }
 
@@ -121,6 +126,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
         ChangeNotifierProvider<YogaSessionProvider>.value(value: _yogaSessionProvider),
         ChangeNotifierProvider<CalendarProvider>.value(value: _calendarProvider),
         ChangeNotifierProvider<ProgressProvider>.value(value: _progressProvider),
+        ChangeNotifierProvider<BodyMeasurementsProvider>.value(value: _bodyMeasurementsProvider),
       ],
       child: MaterialApp.router(
         title: 'DailyForge',

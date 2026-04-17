@@ -19,6 +19,11 @@ class AppColors {
   static const Color breathwork = Color(0xFF3B82F6);
   static const Color purple = Color(0xFFa78bfa);
 
+  // Semantic accents (used across body measurements and elsewhere
+  // where difficulty labels would be misleading).
+  static const Color accent = Color(0xFFD85A30);
+  static const Color positive = Color(0xFF1D9E75);
+
   // Difficulty
   static const Color beginner = Color(0xFF1D9E75);
   static const Color intermediate = Color(0xFFD85A30);

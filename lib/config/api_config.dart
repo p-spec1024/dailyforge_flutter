@@ -64,8 +64,10 @@ class ApiConfig {
   static const String suggestions = '/analytics/suggestions';
   static const String calendar = '/analytics/calendar';
 
-  // Body Metrics
-  static const String bodyMetrics = '/body-metrics';
+  // Body Measurements
+  static const String bodyMeasurements = '/body-measurements';
+  static const String bodyMeasurementsStats = '/body-measurements/stats';
+  static String bodyMeasurement(int id) => '/body-measurements/$id';
 
   // Settings
   static const String settings = '/settings';

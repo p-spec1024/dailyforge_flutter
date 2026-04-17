@@ -16,7 +16,11 @@
       "Bash(gh.exe pr *)",
       "Bash(python3 *)",
       "Bash(node -e \"import\\('./src/constants/breathwork-durations.js'\\).then\\(m => { const names = ['Box Breathing','4-7-8 Breathing','Physiological Sigh','Kapalabhati','Holotropic Breathwork','Apnea Training','Kumbhaka','Rebirthing Breath','Tummo','Wim Hof Method','Unknown Technique']; for \\(const n of names\\) console.log\\(n.padEnd\\(28\\), m.getEstimatedDurationSeconds\\(n, 'advanced'\\)/60, 'min'\\); }\\);\")",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(flutter build *)",
+      "Bash(dart analyze *)",
+      "Bash(wc -l lib/pages/progress/*.dart lib/providers/progress_provider.dart)",
+      "Bash(grep -v \"unused_import.*api_config\\\\|exercise_history_page\\\\|exercise_progress_page\\\\|yoga\\\\\\\\\\\\\\\\|pose_preview_modal\\\\|yoga_pose_display\\\\|yoga_start_button\")"
     ]
   }
 }
