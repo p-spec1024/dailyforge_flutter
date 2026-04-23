@@ -181,6 +181,16 @@ class _ProfilePageState extends State<ProfilePage> {
                       iconColor: AppColors.yoga,
                       onTap: () => context.push('/body-measurements'),
                     ),
+                    const SizedBox(height: 12),
+
+                    // TODO(S10-T5a): remove after spike — dev entry to 3D body map spike
+                    ProfileMenuCard(
+                      icon: LucideIcons.box,
+                      title: '[spike] 3D Body Map',
+                      subtitle: 'Step 0 verification — remove before commit',
+                      iconColor: AppColors.breathwork,
+                      onTap: () => context.push('/spike/body-map'),
+                    ),
                     const SizedBox(height: 32),
 
                     // Logout Button

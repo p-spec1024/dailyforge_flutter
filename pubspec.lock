@@ -256,6 +256,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.2"
+  interactive_3d:
+    dependency: "direct main"
+    description:
+      name: interactive_3d
+      sha256: "5b05c020751bf3131bad1f88200f87b0e9938fa33ccba1a1118816742023d1dd"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.3"
   intl:
     dependency: "direct main"
     description:

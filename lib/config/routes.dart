@@ -17,6 +17,7 @@ import '../pages/yoga/yoga_session_page.dart';
 import '../pages/yoga/yoga_complete_page.dart';
 import '../pages/body_measurements/body_measurements_page.dart';
 import '../pages/body_measurements/full_month_page.dart';
+import '../spike/body_map_spike.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -109,6 +110,10 @@ GoRouter createRouter(AuthProvider authProvider) {
           final month = state.extra as DateTime? ?? DateTime.now();
           return FullMonthPage(month: month);
         },
+      ),
+      GoRoute(
+        path: '/spike/body-map',
+        builder: (context, state) => const BodyMapSpikePage(),
       ),
       GoRoute(
         path: '/exercise-progress/:id',
