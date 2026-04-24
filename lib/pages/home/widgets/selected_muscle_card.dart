@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+// Per-muscle detail (Last trained / Volume / Top exercise / Sets) is still
+// mock-backed in T5c-a — no `/api/body-map/muscle-detail/:group` endpoint
+// exists yet. Becomes provider-backed in T5c-b.
 import '../../../data/mock_body_map_data.dart';
 import '_tokens.dart';
 import 'body_map_3d.dart' show BodyMapMode;

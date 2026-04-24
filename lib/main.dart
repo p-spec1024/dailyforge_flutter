@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'config/theme.dart';
 import 'config/routes.dart';
 import 'providers/auth_provider.dart';
+import 'providers/body_map_provider.dart';
 import 'providers/breathwork_provider.dart';
 import 'providers/dashboard_provider.dart';
 import 'providers/profile_provider.dart';
@@ -45,6 +46,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
   late final CalendarProvider _calendarProvider;
   late final ProgressProvider _progressProvider;
   late final BodyMeasurementsProvider _bodyMeasurementsProvider;
+  late final BodyMapProvider _bodyMapProvider;
   late final GoRouter _router;
 
   @override
@@ -69,6 +71,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
     _calendarProvider = CalendarProvider(api);
     _progressProvider = ProgressProvider(api);
     _bodyMeasurementsProvider = BodyMeasurementsProvider(api);
+    _bodyMapProvider = BodyMapProvider(api);
 
     // Reset user-scoped caches when auth is invalidated.
     _authProvider.addListener(_handleAuthChanged);
@@ -84,6 +87,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
       _profileProvider.clear();
       _progressProvider.clear();
       _bodyMeasurementsProvider.clear();
+      _bodyMapProvider.clear();
     }
     _wasAuthenticated = isAuth;
   }
@@ -104,6 +108,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
     _calendarProvider.dispose();
     _progressProvider.dispose();
     _bodyMeasurementsProvider.dispose();
+    _bodyMapProvider.dispose();
     super.dispose();
   }
 
@@ -127,6 +132,7 @@ class _DailyForgeAppState extends State<DailyForgeApp> {
         ChangeNotifierProvider<CalendarProvider>.value(value: _calendarProvider),
         ChangeNotifierProvider<ProgressProvider>.value(value: _progressProvider),
         ChangeNotifierProvider<BodyMeasurementsProvider>.value(value: _bodyMeasurementsProvider),
+        ChangeNotifierProvider<BodyMapProvider>.value(value: _bodyMapProvider),
       ],
       child: MaterialApp.router(
         title: 'DailyForge',
