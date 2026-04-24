@@ -7,9 +7,9 @@ import 'api_service.dart';
 /// `false`. Flip locally for offline UI work; **verify before commit**.
 const bool kUseMockBodyMap = false;
 
-/// HTTP client for the `/api/body-map/*` endpoints (S10-T5b).
+/// HTTP client for the `/api/body-map/*` endpoints (S10-T5b / T5c-b).
 /// Three endpoints, all GET, all auth-required:
-///   GET /muscle-volumes?range=… → Map<String, int> (11 strength groups)
+///   GET /muscle-volumes?range=… → MuscleVolumesResponse { volumes, details }
 ///   GET /flexibility?range=…    → Map<String, int> (Spine, Hips, Shoulders)
 ///   GET /recent-wins?limit=…    → List<RecentWin>  (icon/title/subtitle)
 class BodyMapService {
@@ -17,12 +17,17 @@ class BodyMapService {
 
   BodyMapService(this._api);
 
-  Future<Map<String, int>> fetchMuscleVolumes({String range = '30d'}) async {
+  Future<MuscleVolumesResponse> fetchMuscleVolumes({
+    String range = '30d',
+  }) async {
     if (kUseMockBodyMap) {
-      return Map<String, int>.from(mockMuscleVolumes);
+      return MuscleVolumesResponse(
+        volumes: Map<String, int>.from(mockMuscleVolumes),
+        details: Map<String, MuscleDetail>.from(mockMuscleDetails),
+      );
     }
     final raw = await _api.get('/body-map/muscle-volumes?range=$range');
-    return _intMap(raw);
+    return MuscleVolumesResponse.fromJson(raw);
   }
 
   Future<Map<String, int>> fetchFlexibility({String range = '30d'}) async {

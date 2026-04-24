@@ -2,29 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../config/theme.dart';
+import '../../models/body_map.dart';
 import '../../providers/body_map_provider.dart';
+import '../../providers/home_provider.dart';
 import 'widgets/_tokens.dart';
 import 'widgets/body_map_3d.dart';
 import 'widgets/heatmap_legend.dart';
-import 'widgets/inspirational_stat.dart';
-import 'widgets/last_4_weeks_chart.dart';
+import 'widgets/inspirational_footer.dart';
 import 'widgets/mode_toggle.dart';
 import 'widgets/recent_wins_list.dart';
 import 'widgets/selected_muscle_card.dart';
 import 'widgets/stats_row.dart';
-import 'widgets/today_session_card.dart';
+import 'widgets/todays_practice_section.dart';
+import 'widgets/weekly_activity_chart.dart';
 
-/// DailyForge home page (S10-T5a UI, T5c-a real data).
+/// DailyForge home page (S10-T5a UI, T5c-a/b real data).
 /// Sprint 8's dashboard version preserved at `_legacy/home_page_s8.dart`.
 ///
-/// T5c-a wires three sections to `BodyMapProvider`:
-///   • body_map_3d (volumes + flexibility)
-///   • selected_muscle_card flexibility-mode score lookup
-///   • recent_wins_list
-///
-/// Sections still on mock data (no endpoint yet, T5c-b territory):
-///   • selected_muscle_card muscle-mode detail (Last trained, Volume, etc.)
-///   • today_session_card / stats_row / last_4_weeks_chart / inspirational_stat
+/// Data sources:
+///   • BodyMapProvider — muscle heatmap, selected-muscle card, recent wins
+///   • HomeProvider    — pillar durations, stats row, weekly chart, footer
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -43,7 +40,14 @@ class _HomePageState extends State<HomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<BodyMapProvider>().load();
+      context.read<HomeProvider>().load();
     });
+  }
+
+  Future<void> _refreshAll() async {
+    final bodyMap = context.read<BodyMapProvider>();
+    final home = context.read<HomeProvider>();
+    await Future.wait([bodyMap.refresh(), home.refresh()]);
   }
 
   void _onMuscleTap(String? group) {
@@ -77,7 +81,7 @@ class _HomePageState extends State<HomePage> {
           child: Consumer<BodyMapProvider>(
             builder: (context, provider, _) {
               return RefreshIndicator(
-                onRefresh: provider.refresh,
+                onRefresh: _refreshAll,
                 color: kCoral,
                 backgroundColor: Colors.white,
                 child: CustomScrollView(
@@ -94,6 +98,7 @@ class _HomePageState extends State<HomePage> {
 
   List<Widget> _buildSlivers(BodyMapProvider provider) {
     final volumes = provider.muscleVolumes ?? const <String, int>{};
+    final details = provider.muscleDetails ?? const <String, MuscleDetail>{};
     final flexibility = provider.flexibility ?? const <String, int>{};
     // Surface any error — including refresh failures over stale data — not
     // just first-load failures (per phone-test issue #3 in T5c-a review).
@@ -139,19 +144,21 @@ class _HomePageState extends State<HomePage> {
               mode: _mode,
               selectedGroup: _selectedGroup,
               flexibilityScores: flexibility,
+              muscleDetails: details,
             ),
             const SizedBox(height: 16),
             HeatmapLegend(mode: _mode),
             const SizedBox(height: 24),
-            const TodaySessionCard(),
+            _buildRecentWins(provider),
+            const SizedBox(height: 24),
+            const TodaysPracticeSection(),
             const SizedBox(height: 24),
             const StatsRow(),
             const SizedBox(height: 24),
-            const Last4WeeksChart(),
-            const SizedBox(height: 24),
-            _buildRecentWins(provider),
-            const InspirationalStat(),
-            const SizedBox(height: 80),
+            const WeeklyActivityChart(),
+            const SizedBox(height: 8),
+            const InspirationalFooter(),
+            const SizedBox(height: 60),
           ]),
         ),
       ),

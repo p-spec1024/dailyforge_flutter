@@ -90,6 +90,11 @@ class ApiService {
       throw NetworkException();
     } on HttpException catch (e) {
       throw NetworkException(e.message);
+    } on http.ClientException catch (e) {
+      // Android throws ClientException for certain failed requests. Not a
+      // subclass of SocketException/HttpException — must be caught explicitly
+      // or it propagates unwrapped (FUTURE_SCOPE #107).
+      throw NetworkException(e.message);
     }
   }
 
@@ -138,6 +143,9 @@ class ApiService {
       throw NetworkException();
     } on HttpException catch (e) {
       if (kDebugMode) debugPrint('[API] $method $url → HTTP ${e.message}');
+      throw NetworkException(e.message);
+    } on http.ClientException catch (e) {
+      if (kDebugMode) debugPrint('[API] $method $url → CLIENT ${e.message}');
       throw NetworkException(e.message);
     }
   }

@@ -21,10 +21,18 @@ const Color kHeatmapMedium = Color(0xFFF0997B);
 const Color kHeatmapHeavy = Color(0xFFD85A30);
 const Color kHeatmapMax = Color(0xFF993C1D);
 
-// Stacked chart colors
-const Color kChartStrength = Color(0xFFD85A30);
-const Color kChartYoga = Color(0xFF14B8A6);
-const Color kChartBreath = Color(0xFF3B82F6);
+// Pillar accent colors (S10-T5c-b). Shared by the Today's Practice three-
+// pillar cards and the weekly-activity stacked chart so the two surfaces
+// read as one system.
+const Color kPillarStrength = Color(0xFFF59E0B); // gold
+const Color kPillarYoga = Color(0xFF1D9E75);     // teal
+const Color kPillarBreath = Color(0xFFA78BFA);   // purple
+
+// Legacy aliases for the stacked chart — kept as named constants so
+// existing references keep compiling. Point at the pillar accents.
+const Color kChartStrength = kPillarStrength;
+const Color kChartYoga = kPillarYoga;
+const Color kChartBreath = kPillarBreath;
 
 // Recent wins accent colors
 const Color kTrophyGold = Color(0xFFF59E0B);

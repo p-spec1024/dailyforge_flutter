@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-// Per-muscle detail (Last trained / Volume / Top exercise / Sets) is still
-// mock-backed in T5c-a — no `/api/body-map/muscle-detail/:group` endpoint
-// exists yet. Becomes provider-backed in T5c-b.
-import '../../../data/mock_body_map_data.dart';
+import '../../../models/body_map.dart';
 import '_tokens.dart';
 import 'body_map_3d.dart' show BodyMapMode;
 
@@ -12,12 +9,14 @@ class SelectedMuscleCard extends StatelessWidget {
   final BodyMapMode mode;
   final String? selectedGroup;
   final Map<String, int> flexibilityScores;
+  final Map<String, MuscleDetail> muscleDetails;
 
   const SelectedMuscleCard({
     super.key,
     required this.mode,
     required this.selectedGroup,
     required this.flexibilityScores,
+    required this.muscleDetails,
   });
 
   @override
@@ -39,8 +38,9 @@ class SelectedMuscleCard extends StatelessWidget {
   }
 
   Widget _muscleBody() {
-    final detail = mockMuscleDetails[selectedGroup];
-    if (detail == null) return _placeholder();
+    // Backend always emits all 11 keys; fall back to zero-state defensively
+    // for a stale/legacy response where details is empty.
+    final detail = muscleDetails[selectedGroup] ?? MuscleDetail.zero;
 
     return Container(
       decoration: kCardDecoration(),

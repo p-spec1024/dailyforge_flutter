@@ -17,6 +17,7 @@ class BodyMapProvider extends ChangeNotifier {
   final BodyMapService _service;
 
   Map<String, int>? _muscleVolumes;
+  Map<String, MuscleDetail>? _muscleDetails;
   Map<String, int>? _flexibility;
   List<RecentWin>? _recentWins;
   bool _loading = false;
@@ -26,6 +27,7 @@ class BodyMapProvider extends ChangeNotifier {
   BodyMapProvider(ApiService api) : _service = BodyMapService(api);
 
   Map<String, int>? get muscleVolumes => _muscleVolumes;
+  Map<String, MuscleDetail>? get muscleDetails => _muscleDetails;
   Map<String, int>? get flexibility => _flexibility;
   List<RecentWin>? get recentWins => _recentWins;
   bool get loading => _loading;
@@ -57,8 +59,10 @@ class BodyMapProvider extends ChangeNotifier {
         _service.fetchMuscleVolumes(range: _range),
         _service.fetchFlexibility(range: _range),
       ]);
-      _muscleVolumes = results[0];
-      _flexibility = results[1];
+      final mv = results[0] as MuscleVolumesResponse;
+      _muscleVolumes = mv.volumes;
+      _muscleDetails = mv.details;
+      _flexibility = results[1] as Map<String, int>;
     } on ApiException catch (e) {
       _error = e.message;
       debugPrint('[BodyMapProvider] setRange($range) error: $e');
@@ -80,22 +84,15 @@ class BodyMapProvider extends ChangeNotifier {
         _service.fetchFlexibility(range: _range),
         _service.fetchRecentWins(),
       ]);
-      _muscleVolumes = results[0] as Map<String, int>;
+      final mv = results[0] as MuscleVolumesResponse;
+      _muscleVolumes = mv.volumes;
+      _muscleDetails = mv.details;
       _flexibility = results[1] as Map<String, int>;
       _recentWins = results[2] as List<RecentWin>;
       _error = null; // success → clear so banner dismisses
     } on ApiException catch (e) {
       _error = e.message;
-      debugPrint('[BodyMapProvider] load error (api): $e');
-    } catch (e) {
-      // Catches anything api_service didn't wrap as ApiException — most
-      // commonly http package's ClientException on Android, which is NOT
-      // a subclass of SocketException so api_service's `on SocketException`
-      // misses it and the exception propagates unwrapped. See FUTURE_SCOPE
-      // #107 for the api_service-level fix; this defensive catch lives
-      // here until that lands.
-      _error = 'Network error. Please try again.';
-      debugPrint('[BodyMapProvider] load error (unhandled): $e');
+      debugPrint('[BodyMapProvider] load error: $e');
     } finally {
       _loading = false;
       notifyListeners();
@@ -105,6 +102,7 @@ class BodyMapProvider extends ChangeNotifier {
   /// Drop cached data — called from auth invalidation handler in main.dart.
   void clear() {
     _muscleVolumes = null;
+    _muscleDetails = null;
     _flexibility = null;
     _recentWins = null;
     _error = null;
